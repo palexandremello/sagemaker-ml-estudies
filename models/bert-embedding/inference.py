@@ -58,6 +58,7 @@ def predict_fn(input_data, model: HuggingFaceEmbeddings):
     """
     Perform prediction on the input data.
     """
+    
     embeddings = model.predict(input_data["text"])
     return embeddings
 
