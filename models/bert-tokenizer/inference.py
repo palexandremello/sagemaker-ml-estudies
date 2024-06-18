@@ -38,6 +38,7 @@ def model_fn(model_dir: str) -> HuggingFaceTokenizer:
     """
     Load the model from the model directory.
     """
+    print("Bora deployar o novo modelo")
     return HuggingFaceTokenizer.get_instance()
 
 def input_fn(request_body, request_content_type):
@@ -53,7 +54,7 @@ def predict_fn(input_data, model: HuggingFaceTokenizer):
     """
     Perform prediction on the input data.
     """
-    
+
     input_tokens, input_id_tokens = model.predict(input_data["text"])
     return {"tokens": input_tokens, "id_tokens": input_id_tokens}
 
