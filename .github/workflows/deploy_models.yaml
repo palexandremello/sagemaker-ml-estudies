@@ -1,0 +1,43 @@
+name: Deploy Models
+
+on:
+  push:
+    paths:
+      - 'src/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 pyyaml sagemaker
+
+      - name: Determine changed models
+        id: changes
+        run: |
+          echo "CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^models/' | awk -F '/' '{print $2}' | sort | uniq)" >> $GITHUB_ENV
+
+      - name: Deploy changed models
+        run: |
+          for model in ${{ env.CHANGED_MODELS }}; do
+            echo "Deploying $model"
+            python scripts/upload_and_deploy_model.py $model
+          done
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-east-1'
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          SAGEMAKER_EXECUTION_ROLE: ${{ secrets.SAGEMAKER_EXECUTION_ROLE }}
+          IMAGE_URI: ${{ secrets.IMAGE_URI }}
