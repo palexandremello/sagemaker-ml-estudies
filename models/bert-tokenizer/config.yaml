@@ -1,3 +1,3 @@
-model_name: bert-tokenizer-gupy
+model_name: bert-tokenizer
 entry_point: inference.py
 instance_type: ml.t2.medium
