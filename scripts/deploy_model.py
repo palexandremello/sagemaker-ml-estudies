@@ -42,7 +42,7 @@ def main():
     if len(sys.argv) != 2:
         raise ValueError("Usage: upload_and_deploy_model.py <model_name>")
     model_name = sys.argv[1]
-    config_path = os.path.join('models', model_name, 'config.yml')
+    config_path = os.path.join('models', model_name, 'config.yaml')
     if os.path.exists(config_path):
         deploy_model(config_path)
     else:
