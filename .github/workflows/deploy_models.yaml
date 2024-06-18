@@ -3,7 +3,7 @@ name: Deploy Models
 on:
   push:
     paths:
-      - 'src/**'
+      - 'models/**'
 
 jobs:
   deploy:
@@ -13,8 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-          fetch-depth: 2  # Certifique-se de que há pelo menos 2 commits no histórico
-
+          fetch-depth: 2 
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -29,9 +28,11 @@ jobs:
         id: changes
         run: |
           git fetch --no-tags --prune --unshallow || true
-          echo "CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^models/' | awk -F '/' '{print $2}' | sort | uniq)" >> $GITHUB_ENV
+          CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^models/' | awk -F '/' '{print $2}' | sort | uniq)
+          echo "CHANGED_MODELS=$CHANGED_MODELS" >> $GITHUB_ENV
 
       - name: Deploy changed models
+        if: env.CHANGED_MODELS != ''
         run: |
           for model in ${{ env.CHANGED_MODELS }}; do
             echo "Deploying $model"
