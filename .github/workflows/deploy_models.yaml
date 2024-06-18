@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 2  # Certifique-se de que há pelo menos 2 commits no histórico
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -26,13 +28,14 @@ jobs:
       - name: Determine changed models
         id: changes
         run: |
-          echo "CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^src/' | awk -F '/' '{print $2}' | sort | uniq)" >> $GITHUB_ENV
+          git fetch --no-tags --prune --unshallow || true
+          echo "CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^models/' | awk -F '/' '{print $2}' | sort | uniq)" >> $GITHUB_ENV
 
       - name: Deploy changed models
         run: |
           for model in ${{ env.CHANGED_MODELS }}; do
             echo "Deploying $model"
-            python scripts/deploy_model.py $model
+            python scripts/upload_and_deploy_model.py $model
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
