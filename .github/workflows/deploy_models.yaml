@@ -32,7 +32,7 @@ jobs:
         run: |
           for model in ${{ env.CHANGED_MODELS }}; do
             echo "Deploying $model"
-            python scripts/upload_and_deploy_model.py $model
+            python scripts/deploy_model.py $model
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
