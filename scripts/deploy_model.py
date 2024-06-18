@@ -15,6 +15,7 @@ def deploy_model(config_path):
     instance_type = config['instance_type']
     
     s3_bucket = os.getenv('S3_BUCKET')
+    model_dir = f'models/{model_name}'
     model_tar_path = f"s3://{s3_bucket}/{model_name}/model.tar.gz"
     
     role = os.getenv('SAGEMAKER_EXECUTION_ROLE')
@@ -22,6 +23,12 @@ def deploy_model(config_path):
 
     if not all([s3_bucket, role, image_uri]):
         raise ValueError("S3_BUCKET, SAGEMAKER_EXECUTION_ROLE, and IMAGE_URI environment variables must be set")
+
+    os.system(f'tar -czvf {model_dir}/model.tar.gz -C {model_dir} .')
+
+    upload_path = s3_path_join("s3://", s3_bucket, model_name)
+    S3Uploader.upload(f'{model_dir}/model.tar.gz', upload_path)
+    print(f"Uploaded model to {upload_path}")
 
     huggingface_model = Model(
         model_data=model_tar_path,

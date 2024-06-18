@@ -1,3 +1,3 @@
-model_name: bert-embedding-gupy
+model_name: bert-embedding
 entry_point: inference.py
 instance_type: ml.t2.medium
