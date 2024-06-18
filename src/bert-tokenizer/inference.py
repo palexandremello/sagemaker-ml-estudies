@@ -55,7 +55,6 @@ def predict_fn(input_data, model: HuggingFaceTokenizer):
     """
     input_tokens, input_id_tokens = model.predict(input_data["text"])
 
-    
     return {"tokens": input_tokens, "id_tokens": input_id_tokens}
 
 def output_fn(prediction, content_type):
