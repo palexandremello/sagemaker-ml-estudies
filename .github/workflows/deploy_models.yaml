@@ -13,7 +13,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-          fetch-depth: 2 
+          fetch-depth: 2  # Fetch de dois commits para garantir que possamos comparar
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -29,14 +30,15 @@ jobs:
         run: |
           git fetch --no-tags --prune --unshallow || true
           CHANGED_MODELS=$(git diff --name-only HEAD^ HEAD | grep '^models/' | awk -F '/' '{print $2}' | sort | uniq)
-          echo "CHANGED_MODELS=$CHANGED_MODELS" >> $GITHUB_ENV
+          echo "CHANGED_MODELS=$(echo $CHANGED_MODELS | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "Changed models: $CHANGED_MODELS"
 
       - name: Deploy changed models
         if: env.CHANGED_MODELS != ''
         run: |
           for model in ${{ env.CHANGED_MODELS }}; do
             echo "Deploying $model"
-            python scripts/upload_and_deploy_model.py $model
+            python scripts/deploy_model.py $model
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
