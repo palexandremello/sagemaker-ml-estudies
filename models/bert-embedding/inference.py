@@ -43,6 +43,8 @@ def model_fn(model_dir: str) -> HuggingFaceEmbeddings:
     """
     Load the model from the model directory.
     """
+
+    
     return HuggingFaceEmbeddings.get_instance()
 
 def input_fn(request_body, request_content_type):
