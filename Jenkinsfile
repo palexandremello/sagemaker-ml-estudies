@@ -4,9 +4,6 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_CREDENTIALS_ID = 'aws-credentials'
-        AWS_ACCOUNT_ID = credentials('aws-account-id') // Certifique-se de que essa credencial está configurada no Jenkins
-        ECR_REPO = 'meu-repositorio-ecr'
-        SAGEMAKER_ROLE = 'arn:aws:iam::123456789012:role/SageMakerRole'
     }
 
     stages {
@@ -15,6 +12,28 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/palexandremello/sagemaker-ml-estudies.git'
                 script {
                     env.COMMIT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                }
+            }
+        }
+
+        stage('Set Environment Variables from Parameter Store') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
+                    script {
+                        def params = [
+                            'AWS_ACCOUNT_ID',
+                            'ECR_REPO',
+                            'SAGEMAKER_ROLE'
+                        ]
+                        params.each { param ->
+                            def command = "aws ssm get-parameter --name /path/to/${param} --with-decryption --query Parameter.Value --output text"
+                            def value = sh(returnStdout: true, script: command).trim()
+                            env."${param}" = value
+                        }
+                    }
                 }
             }
         }
