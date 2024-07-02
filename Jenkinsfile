@@ -45,13 +45,36 @@ pipeline {
             }
         }
 
+        stage('Create ECR Repository if not exists') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
+                    script {
+                        def repoExists = sh(
+                            script: "aws ecr describe-repositories --repository-names ${env.ECR_REPO} --region ${env.AWS_DEFAULT_REGION}",
+                            returnStatus: true
+                        ) == 0
+
+                        if (!repoExists) {
+                            sh "aws ecr create-repository --repository-name ${env.ECR_REPO} --region ${env.AWS_DEFAULT_REGION}"
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build and Push Image to ECR') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
                         sh """
-                        \$(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
+                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
                         docker build -t ${env.ECR_REPO}:${imageTag} .
                         docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
                         docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
@@ -61,6 +84,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Model Type Check') {
             steps {
