@@ -5,3 +5,7 @@
 __pycache__
 
 opt/ml/model/*
+
+model.tar.gz
+
+build_and_push.sh

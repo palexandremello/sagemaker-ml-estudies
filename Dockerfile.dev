@@ -1,0 +1,21 @@
+FROM python:3.10
+
+RUN apt-get -y update && apt-get install -y --no-install-recommends \
+    g++ \
+    make \
+    cmake \
+    wget \
+    nginx \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV BASE_DIR="/project/opt/"
+
+COPY ./ ./project
+WORKDIR /project
+
+# Remova a instalação do Poetry e adicione a instalação de dependências com pip
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD ["uvicorn", "opt.program.main:app", "--reload", "--host", "0.0.0.0", "--port", "8080"]

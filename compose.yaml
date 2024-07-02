@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  sagemaker_endpoint:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./:/project
+
+    container_name: sagemaker_endpoint
+    environment:
+      - PYTHONPATH=/project/opt
+      - ENV=local
+
+    ports:
+      - "8080:8080"
+
+    tty: true
+    stdin_open: true
