@@ -6,7 +6,7 @@ endpoint_name_prefix: "boyc-inference-mode"
 inference:
   InstanceType: "ml.m5.large"
   InitialInstanceCount: 1
-
+  ModelDataUrl: "sagemaker-us-east-1-488578253112/byoc-model/model.tar.gz"
 s3:
   input_bucket: "your-input-bucket"
   output_bucket: "your-output-bucket"

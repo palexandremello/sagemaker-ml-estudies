@@ -96,6 +96,7 @@ pipeline {
                     env.ENDPOINT_NAME_PREFIX = config.endpoint_name_prefix
                     env.INSTANCE_TYPE = config.inference.InstanceType
                     env.INITIAL_INSTANCE_COUNT = config.inference.InitialInstanceCount
+                    env.MODEL_PATH = config.inference.ModelDataUrl
                     env.S3_INPUT_BUCKET = config.s3.input_bucket
                     env.S3_OUTPUT_BUCKET = config.s3.output_bucket
                     env.S3_DATA_PREFIX = config.s3.data_prefix
@@ -111,7 +112,7 @@ pipeline {
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         } else {
@@ -126,6 +127,21 @@ pipeline {
                                 --stopping-condition MaxRuntimeInSeconds=3600
                             """
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Wait for Model Creation') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        sh """
+                        while [[ \$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text 2>&1) != arn:* ]]; do
+                            echo "Waiting for model creation..."
+                            sleep 30
+                        done
+                        """
                     }
                 }
             }
@@ -149,35 +165,33 @@ pipeline {
             }
         }
 
+        stage('Wait for Staging Endpoint') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        sh """
+                        while [[ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging-${env.IMAGE_TAG} --query 'EndpointStatus' --output text) != 'InService' ]]; do
+                            echo "Waiting for endpoint to be InService..."
+                            sleep 30
+                        done
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Model Evaluation') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
                         echo 'Evaluating model...'
                         sh """
-                        kubectl run evaluate-model-${env.IMAGE_TAG} --image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG} --restart=Never --namespace=default -- /bin/sh -c 'python evaluate.py'
+                        echo "Aqui fazemos um teste do modelo"
                         """
                     }
                 }
             }
         }
 
-        stage('Deploy to Production') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        aws sagemaker create-endpoint-config \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-prod-config-${env.IMAGE_TAG} \
-                            --production-variants VariantName=AllTraffic,ModelName=${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG},InitialInstanceCount=${env.INITIAL_INSTANCE_COUNT},InstanceType=${env.INSTANCE_TYPE}
-
-                        aws sagemaker create-endpoint \
-                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-prod-${env.IMAGE_TAG} \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-prod-config-${env.IMAGE_TAG}
-                        """
-                    }
-                }
-            }
-        }
     }
 }
