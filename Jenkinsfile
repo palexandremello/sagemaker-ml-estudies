@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'master', url: 'https://github.com/usuario/repositorio.git'
+                git branch: 'master', url: 'https://github.com/palexandremello/sagemaker-ml-estudies.git'
                 script {
                     env.COMMIT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                 }
@@ -29,7 +29,7 @@ pipeline {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
                         sh """
-                        $(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
+                        \$(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
                         docker build -t ${env.ECR_REPO}:${imageTag} .
                         docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
                         docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
