@@ -25,11 +25,14 @@ pipeline {
 
         stage('Build and Push Image to ECR') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
                         sh """
-                        \$(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
+                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
                         docker build -t ${env.ECR_REPO}:${imageTag} .
                         docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
                         docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
@@ -58,7 +61,10 @@ pipeline {
 
         stage('Create or Train Model') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         def modelType = 'train'
                         if (modelType == 'pre-trained') {
@@ -87,7 +93,10 @@ pipeline {
 
         stage('Deploy to Staging') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         sh """
                         aws sagemaker create-endpoint-config \
@@ -105,7 +114,10 @@ pipeline {
 
         stage('Model Evaluation') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         echo 'Evaluating model...'
                         sh """
@@ -118,7 +130,10 @@ pipeline {
 
         stage('Deploy to Production') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
                     script {
                         sh """
                         aws sagemaker create-endpoint-config \
