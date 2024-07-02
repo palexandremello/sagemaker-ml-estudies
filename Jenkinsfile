@@ -45,6 +45,26 @@ pipeline {
             }
         }
 
+        stage('Create ECR Repository if not exists') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
+                    script {
+                        def repoExists = sh(
+                            script: "aws ecr describe-repositories --repository-names ${env.ECR_REPO} --region ${env.AWS_DEFAULT_REGION}",
+                            returnStatus: true
+                        ) == 0
+
+                        if (!repoExists) {
+                            sh "aws ecr create-repository --repository-name ${env.ECR_REPO} --region ${env.AWS_DEFAULT_REGION}"
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build and Push Image to ECR') {
             steps {
                 withCredentials([[
