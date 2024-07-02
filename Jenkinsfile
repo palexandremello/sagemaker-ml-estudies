@@ -29,7 +29,7 @@ pipeline {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
                         sh """
-                        \$(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
+                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
                         docker build -t ${env.ECR_REPO}:${imageTag} .
                         docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
                         docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
