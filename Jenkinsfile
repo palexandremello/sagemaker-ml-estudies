@@ -24,14 +24,14 @@ pipeline {
                 ]]) {
                     script {
                         def params = [
-                            'AWS_ACCOUNT_ID',
-                            'ECR_REPO',
-                            'SAGEMAKER_ROLE'
+                            'aws-account-id',
+                            'ecr-repo',
+                            'sagemaker-role'
                         ]
                         params.each { param ->
-                            def command = "aws ssm get-parameter --name /path/to/${param} --with-decryption --query Parameter.Value --output text"
+                            def command = "aws ssm get-parameter --name /sagemaker-byoc-builder/dev/${param} --with-decryption --query Parameter.Value --output text"
                             def value = sh(returnStdout: true, script: command).trim()
-                            env."${param}" = value
+                            env."${param.replace('-', '_').toUpperCase()}" = value
                         }
                     }
                 }
