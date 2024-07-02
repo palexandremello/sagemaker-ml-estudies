@@ -132,20 +132,27 @@ pipeline {
             }
         }
 
-        stage('Wait for Model Creation') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        while [ \$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text 2>&1) != arn:* ]; do
-                            echo "Waiting for model creation..."
-                            sleep 30
-                        done
-                        """
-                    }
-                }
+stage('Wait for Model Creation') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+            script {
+                sh """
+                while true; do
+                    MODEL_ARN=\$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text 2>&1)
+                    if [[ \$MODEL_ARN == arn:* ]]; then
+                        echo "Model creation completed: \$MODEL_ARN"
+                        break
+                    else
+                        echo "Waiting for model creation..."
+                        sleep 30
+                    fi
+                done
+                """
             }
         }
+    }
+}
+
 
         stage('Deploy to Staging') {
             steps {
