@@ -137,7 +137,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
                         sh """
-                        while [[ \$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text 2>&1) != arn:* ]]; do
+                        while [ \$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text 2>&1) != arn:* ]; do
                             echo "Waiting for model creation..."
                             sleep 30
                         done
