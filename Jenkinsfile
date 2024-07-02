@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_CREDENTIALS_ID = 'aws-credentials'
-        AWS_ACCOUNT_ID = credentials('aws-account-id') // Certifique-se de que essa credencial está configurada no Jenkins
+        AWS_ACCOUNT_ID = credentials('aws-credentials') // Certifique-se de que essa credencial está configurada no Jenkins
         ECR_REPO = 'meu-repositorio-ecr'
         SAGEMAKER_ROLE = 'arn:aws:iam::123456789012:role/SageMakerRole'
     }
