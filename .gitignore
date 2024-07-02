@@ -1,0 +1,7 @@
+./opt/ml/*
+
+**/__pycache__/*
+
+__pycache__
+
+opt/ml/model/*
