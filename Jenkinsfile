@@ -16,6 +16,32 @@ pipeline {
             }
         }
 
+    stage('Set Environment Variables from Parameter Store') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                ]]) {
+                    script {
+                        def params = [
+                            'aws-account-id',
+                            'ecr-repo',
+                            'sagemaker-role',
+                            'model-name-prefix',
+                            'endpoint-config-name-prefix',
+                            'endpoint-name-prefix',
+                            'ecr-image-url'
+                        ]
+                        params.each { param ->
+                            def command = "aws ssm get-parameter --name /sagemaker-byoc-builder/dev/${param} --with-decryption --query Parameter.Value --output text"
+                            def value = sh(returnStdout: true, script: command).trim()
+                            env."${param.replace('-', '_').toUpperCase()}" = value
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Verify Commit') {
             steps {
                 echo 'Verifying commit...'
@@ -29,7 +55,7 @@ pipeline {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
                         sh """
-                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
+                        \$(aws ecr get-login --no-include-email --region ${env.AWS_DEFAULT_REGION})
                         docker build -t ${env.ECR_REPO}:${imageTag} .
                         docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
                         docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
