@@ -1,0 +1,13 @@
+model_type: "pre-trained"  # Pode ser "trainable" ou "pre-trained"
+model_name_prefix: "boyc-inference-mode-model"
+endpoint_config_name_prefix: "boyc-inference-mode-config"
+endpoint_name_prefix: "boyc-inference-mode"
+
+inference:
+  InstanceType: "ml.m5.large"
+  InitialInstanceCount: 1
+
+s3:
+  input_bucket: "your-input-bucket"
+  output_bucket: "your-output-bucket"
+  data_prefix: "your-data-prefix"
