@@ -27,10 +27,6 @@ pipeline {
                             'aws-account-id',
                             'ecr-repo',
                             'sagemaker-role',
-                            'model-name-prefix',
-                            'endpoint-config-name-prefix',
-                            'endpoint-name-prefix',
-                            'ecr-image-url'
                         ]
                         params.each { param ->
                             def command = "aws ssm get-parameter --name /sagemaker-byoc-builder/dev/${param} --with-decryption --query Parameter.Value --output text"
