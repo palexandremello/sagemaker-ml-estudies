@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'master', url: 'https://github.com/palexandremello/sagemaker-ml-estudies.git'
+                git branch: 'main', url: 'https://github.com/palexandremello/sagemaker-ml-estudies.git'
                 script {
                     env.COMMIT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                 }
