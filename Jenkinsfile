@@ -136,16 +136,15 @@ stage('Wait for Model Creation') {
     steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
             script {
-                MODEL_NAME="${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG}"
                 
                 if (env.MODEL_TYPE == 'pre-trained') {
                     // Aguardar a criação do modelo
                     sh """
-                    echo "Aguardando a criação do modelo ${MODEL_NAME}"
-                    STATUS=$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
+                    echo "Aguardando a criação do modelo ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG}"
+                    STATUS=$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text)
                     while [ "\$STATUS" == "None" ]; do
                         sleep 30
-                        STATUS=$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
+                        STATUS=$(aws sagemaker describe-model --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} --query 'ModelArn' --output text)
                         echo "Status do modelo: \$STATUS"
                     done
 
@@ -154,8 +153,8 @@ stage('Wait for Model Creation') {
                 } else {
                     // Aguardar a conclusão do trabalho de treinamento
                     sh """
-                    echo "Aguardando a conclusão do treinamento do modelo ${MODEL_NAME}-training"
-                    TRAINING_JOB_NAME="${MODEL_NAME}-training"
+                    echo "Aguardando a conclusão do treinamento do modelo ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG}-training"
+                    TRAINING_JOB_NAME="${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG}-training"
                     STATUS=$(aws sagemaker describe-training-job --training-job-name ${TRAINING_JOB_NAME} --query 'TrainingJobStatus' --output text)
                     while [ "\$STATUS" != "Completed" ] && [ "\$STATUS" != "Failed" ]; do
                         sleep 30
