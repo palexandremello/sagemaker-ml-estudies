@@ -132,32 +132,49 @@ pipeline {
             }
         }
 
-        stage('Wait for Model Creation') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        echo "Etapa de aguardar o modelo ser criado"
-                        MODEL_NAME="your-model-name"
-                        STATUS=$(aws sagemaker describe-model --model-name \$MODEL_NAME --query 'ModelDescription.Status' --output text)
+stage('Wait for Model Creation') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+            script {
+                MODEL_NAME="${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG}"
+                
+                if (env.MODEL_TYPE == 'pre-trained') {
+                    // Aguardar a criação do modelo
+                    sh """
+                    echo "Aguardando a criação do modelo ${MODEL_NAME}"
+                    STATUS=$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
+                    while [ "\$STATUS" == "None" ]; do
+                        sleep 30
+                        STATUS=$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
                         echo "Status do modelo: \$STATUS"
-                        while [ "\$STATUS" != "Completed" ] && [ "\$STATUS" != "Failed" ]; do
-                            sleep 30
-                            STATUS=$(aws sagemaker describe-model --model-name \$MODEL_NAME --query 'ModelDescription.Status' --output text)
-                            echo "Status do modelo: \$STATUS"
-                        done
-        
-                        if [ "\$STATUS" == "Failed" ]; then
-                            echo "A criação do modelo falhou"
-                            exit 1
-                        fi
-        
-                        echo "Modelo criado com sucesso"
-                        """
-                    }
+                    done
+
+                    echo "Modelo criado com sucesso: \$STATUS"
+                    """
+                } else {
+                    // Aguardar a conclusão do trabalho de treinamento
+                    sh """
+                    echo "Aguardando a conclusão do treinamento do modelo ${MODEL_NAME}-training"
+                    TRAINING_JOB_NAME="${MODEL_NAME}-training"
+                    STATUS=$(aws sagemaker describe-training-job --training-job-name ${TRAINING_JOB_NAME} --query 'TrainingJobStatus' --output text)
+                    while [ "\$STATUS" != "Completed" ] && [ "\$STATUS" != "Failed" ]; do
+                        sleep 30
+                        STATUS=$(aws sagemaker describe-training-job --training-job-name ${TRAINING_JOB_NAME} --query 'TrainingJobStatus' --output text)
+                        echo "Status do treinamento: \$STATUS"
+                    done
+
+                    if [ "\$STATUS" == "Failed" ]; then
+                        echo "O treinamento do modelo falhou"
+                        exit 1
+                    fi
+
+                    echo "Treinamento do modelo concluído com sucesso"
+                    """
                 }
             }
         }
+    }
+}
 
         stage('Deploy to Staging') {
             steps {
