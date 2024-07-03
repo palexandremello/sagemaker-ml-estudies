@@ -152,7 +152,6 @@ stage('Wait for Model Creation') {
                     echo "Modelo criado com sucesso: \$STATUS"
                     """
                 } else {
-                    // Aguardar a conclusão do trabalho de treinamento
                     sh """
                     echo "Aguardando a conclusão do treinamento do modelo ${MODEL_NAME}-training"
                     TRAINING_JOB_NAME="${MODEL_NAME}-training"
