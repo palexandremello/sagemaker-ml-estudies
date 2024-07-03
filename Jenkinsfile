@@ -138,6 +138,21 @@ pipeline {
                     script {
                         sh """
                         echo "Etapa de aguardar o modelo ser criado"
+                        MODEL_NAME="your-model-name"
+                        STATUS=$(aws sagemaker describe-model --model-name \$MODEL_NAME --query 'ModelDescription.Status' --output text)
+                        echo "Status do modelo: \$STATUS"
+                        while [ "\$STATUS" != "Completed" ] && [ "\$STATUS" != "Failed" ]; do
+                            sleep 30
+                            STATUS=$(aws sagemaker describe-model --model-name \$MODEL_NAME --query 'ModelDescription.Status' --output text)
+                            echo "Status do modelo: \$STATUS"
+                        done
+        
+                        if [ "\$STATUS" == "Failed" ]; then
+                            echo "A criação do modelo falhou"
+                            exit 1
+                        fi
+        
+                        echo "Modelo criado com sucesso"
                         """
                     }
                 }
