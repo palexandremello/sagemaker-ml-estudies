@@ -16,7 +16,7 @@ pipeline {
             }
         }
 
-    stage('Set Environment Variables from Parameter Store') {
+        stage('Set Environment Variables from Parameter Store') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -85,7 +85,6 @@ pipeline {
             }
         }
 
-
         stage('Model Type Check') {
             steps {
                 script {
@@ -132,8 +131,26 @@ pipeline {
             }
         }
 
+        stage('Check Existing Endpoint') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        def endpointExists = sh(
+                            script: "aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging --region ${env.AWS_DEFAULT_REGION}",
+                            returnStatus: true
+                        ) == 0
 
-        stage('Deploy to Staging') {
+                        if (endpointExists) {
+                            env.ENDPOINT_EXISTS = 'true'
+                        } else {
+                            env.ENDPOINT_EXISTS = 'false'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Create Endpoint Config') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
@@ -141,9 +158,56 @@ pipeline {
                         aws sagemaker create-endpoint-config \
                             --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG} \
                             --production-variants VariantName=AllTraffic,ModelName=${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG},InitialInstanceCount=${env.INITIAL_INSTANCE_COUNT},InstanceType=${env.INSTANCE_TYPE}
+                        """
+                    }
+                }
+            }
+        }
 
+        stage('Manual Approval for Endpoint Update') {
+            when {
+                expression {
+                    return env.ENDPOINT_EXISTS == 'true'
+                }
+            }
+            steps {
+                script {
+                    input message: 'Aprovar a substituição da configuração do endpoint de staging?', ok: 'Aprovar'
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                expression {
+                    return env.ENDPOINT_EXISTS == 'false'
+                }
+            }
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        sh """
                         aws sagemaker create-endpoint \
-                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging-${env.IMAGE_TAG} \
+                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging \
+                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Update Staging Endpoint') {
+            when {
+                expression {
+                    return env.ENDPOINT_EXISTS == 'true'
+                }
+            }
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        sh """
+                        aws sagemaker update-endpoint \
+                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging \
                             --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG}
                         """
                     }
@@ -156,7 +220,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
                         sh """
-                        while [ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging-${env.IMAGE_TAG} --query 'EndpointStatus' --output text) != 'InService' ]; do
+                        while [ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging --query 'EndpointStatus' --output text) != 'InService' ]; do
                             echo "Waiting for endpoint to be InService..."
                             sleep 30
                         done
@@ -178,15 +242,5 @@ pipeline {
                 }
             }
         }
-
-        stage('Manual Approval') {
-            steps {
-                script {
-                    input message: 'Aprovar a promoção para produção?', ok: 'Aprovar'
-                }
-            }
-        }
-
-
     }
 }
