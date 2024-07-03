@@ -156,7 +156,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
                         sh """
-                        while [[ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging-${env.IMAGE_TAG} --query 'EndpointStatus' --output text) == 'InService' ]]; do
+                        while [ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging-${env.IMAGE_TAG} --query 'EndpointStatus' --output text) != 'InService' ]; do
                             echo "Waiting for endpoint to be InService..."
                             sleep 30
                         done
