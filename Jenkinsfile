@@ -143,7 +143,7 @@ stage('Wait for Model Creation') {
                     sh """
                     echo "Aguardando a criação do modelo ${MODEL_NAME}"
                     STATUS=\$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
-                    while [ "\$STATUS" == "None" ]; do
+                    while [ "\$STATUS" == "Creating" ]; do
                         sleep 30
                         STATUS=\$(aws sagemaker describe-model --model-name ${MODEL_NAME} --query 'ModelArn' --output text)
                         echo "Status do modelo: \$STATUS"
