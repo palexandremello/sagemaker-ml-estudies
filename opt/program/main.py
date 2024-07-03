@@ -16,6 +16,7 @@ app = FastAPI(title="Word Similarity API")
 ScoringService.get_model()
 
 
+#fiz uma modificação
 @app.get("/ping")
 def ping(response: Response) -> Response:
     health = ScoringService.get_model()
