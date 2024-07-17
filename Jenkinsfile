@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:stable'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
@@ -72,19 +67,23 @@ pipeline {
 
         stage('Build and Push Image to ECR') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${env.AWS_CREDENTIALS_ID}"
-                ]]) {
-                    script {
-                        def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
-                        sh """
-                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
-                        docker build -t ${env.ECR_REPO}:${imageTag} .
-                        docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
-                        docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
-                        """
-                        env.IMAGE_TAG = imageTag
+                script {
+                    docker.image('docker:stable').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: "${env.AWS_CREDENTIALS_ID}"
+                        ]]) {
+                            script {
+                                def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
+                                sh """
+                                aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
+                                docker build -t ${env.ECR_REPO}:${imageTag} .
+                                docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
+                                docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
+                                """
+                                env.IMAGE_TAG = imageTag
+                            }
+                        }
                     }
                 }
             }
@@ -131,6 +130,25 @@ pipeline {
                                 --stopping-condition MaxRuntimeInSeconds=3600
                             """
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Register Model') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        sh """
+                        aws sagemaker create-model-package \
+                            --model-package-name ${env.MODEL_NAME_PREFIX}-package-${env.IMAGE_TAG} \
+                            --model-package-description "Model package for ${env.MODEL_NAME_PREFIX} version ${env.IMAGE_TAG}" \
+                            --model-approval-status Approved \
+                            --model-metadata-properties '{\"CommitHash\":\"${env.COMMIT_HASH}\"}' \
+                            --inference-specification '{\"Containers\":[{\"Image\":\"${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}\",\"ModelDataUrl\":\"s3://${env.MODEL_PATH}\"}],\"SupportedContentTypes\":[\"text/csv\"],\"SupportedResponseMIMETypes\":[\"text/csv\"]}' \
+                            --validation-specification '{\"ValidationRole\":\"${env.SAGEMAKER_ROLE}\",\"ValidationProfiles\":[{\"ProfileName\":\"DefaultProfile\",\"TransformJobDefinition\":{\"TransformInput\":{\"DataSource\":{\"S3DataSource\":{\"S3Uri\":\"s3://${env.S3_INPUT_BUCKET}/${env.S3_DATA_PREFIX}\",\"S3DataType\":\"S3Prefix\"}},\"ContentType\":\"text/csv\"},\"TransformOutput\":{\"S3OutputPath\":\"s3://${env.S3_OUTPUT_BUCKET}/validation-output\"},\"TransformResources\":{\"InstanceType\":\"${env.INSTANCE_TYPE}\",\"InstanceCount\":1}}}]}' \
+                            --execution-role-arn ${env.SAGEMAKER_ROLE}
+                        """
                     }
                 }
             }
