@@ -133,13 +133,14 @@ pipeline {
                                             script: "aws sagemaker describe-training-job --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
                                             returnStdout: true
                                         ).trim()
-
+                            
                                         echo "Training Job Status: ${trainingJobStatus}"
                                         return trainingJobStatus == 'Completed'
                                     }
-                                    sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                                 }
+                                sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                             }
+                            
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
