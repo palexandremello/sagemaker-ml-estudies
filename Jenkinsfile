@@ -137,13 +137,13 @@ pipeline {
                                         echo "Training Job Status: ${trainingJobStatus}"
                                         return trainingJobStatus == 'Completed'
                                     }
-                                    sleep time: 5, unit: 'MINUTES' // Ajuste conforme necessário
+                                    sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                                 }
                             }
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${env.TRAINING_OUTPUT_PATH} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${env.S3_OUTPUT_BUCKET} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         }
