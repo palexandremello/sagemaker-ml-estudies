@@ -23,5 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./opt/ /opt/
 
 RUN chmod 755 /opt/program/serve
+RUN chmod 755 /opt/program/train
 
 EXPOSE 8080

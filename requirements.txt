@@ -5,7 +5,6 @@ python-json-logger==2.0.7
 fastapi==0.101.0
 uvicorn==0.23.2
 gunicorn==21.2.0
-gensim==4.3.1
 black==23.3.0
 pytest==7.3.1
 pytest-cov==4.0.0
@@ -15,3 +14,5 @@ ruff==0.0.265
 pytest-env==0.8.1
 poethepoet==0.21.1
 scipy==1.10.1
+scikit-learn==1.5.1
+pandas

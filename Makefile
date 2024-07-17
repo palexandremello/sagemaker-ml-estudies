@@ -7,5 +7,5 @@ setup:
 serve:
 	docker exec sagemaker_endpoint poetry run serve
 
-enter_container:
-	docker exec -it sagemaker_endpoint bash
+enter_train_container:
+	docker exec -it train_model bash

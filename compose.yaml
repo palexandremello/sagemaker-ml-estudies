@@ -1,20 +1,38 @@
 version: '3'
 
 services:
+  train_model:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    volumes:
+      - ./:/project
+      - ./input_data/:/opt/ml/input/data/training/
+      - ./opt/ml/input/config/:/opt/ml/input/config/
+      - ./output:/opt/ml/output
+      - ./model:/opt/ml/model
+    container_name: train_model
+    environment:
+      - PYTHONPATH=/project/opt
+      - ENV=local
+    command: python /project/opt/program/train
+    tty: true
+    stdin_open: true
+
   sagemaker_endpoint:
     build:
       context: .
       dockerfile: Dockerfile.dev
     volumes:
       - ./:/project
-
+      - ./model:/opt/ml/model  # Certifique-se de que o diretório do modelo está montado corretamente
     container_name: sagemaker_endpoint
     environment:
       - PYTHONPATH=/project/opt
       - ENV=local
-
     ports:
-      - "8080:8080"
-
+      - "9090:8080"
     tty: true
     stdin_open: true
+    depends_on:
+      - train_model

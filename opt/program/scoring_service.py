@@ -1,31 +1,51 @@
-# A singleton for holding the model. This simply loads the model and holds it.
-# It has a predict function that does a prediction based on the model and the input data.
+import pickle
+from sklearn.tree import DecisionTreeClassifier
+import pandas as pd
+from typing import List
+from pydantic import BaseModel
 
+# Schemas
+class IrisFeatures(BaseModel):
+    sepal_length: float
+    sepal_width: float
+    petal_length: float
+    petal_width: float
 
-import gensim
+class InvocationRequest(BaseModel):
+    instances: List[IrisFeatures]
 
+class Prediction(BaseModel):
+    species: str
 
+class InvocationResponse(BaseModel):
+    predictions: List[Prediction]
 
 class ScoringService:
-    model_path = f"opt/ml/model/model.vec"
-
+    model_path = "/opt/ml/model/decision-tree-model.pkl"
     model = None  # Where we keep the model when it's loaded
 
     @classmethod
-    def get_model(cls) -> gensim.models.KeyedVectors:
+    def get_model(cls) -> DecisionTreeClassifier:
         """Get the model object for this instance, loading it if it's not already loaded."""
         if cls.model is None:
-            cls.model = gensim.models.KeyedVectors.load_word2vec_format(
-                cls.model_path, binary=False
-            )
+            with open(cls.model_path, 'rb') as model_file:
+                cls.model = pickle.load(model_file)
         return cls.model
 
     @classmethod
-    def predict(cls, input: str) -> list[tuple[str, float]]:
+    def predict(cls, request: InvocationRequest) -> InvocationResponse:
         """For the input, do the predictions and return them.
 
         Args:
-            input (a pandas dataframe): The data on which to do the predictions. There will be
-                one prediction per row in the dataframe"""
+            request (InvocationRequest): The data on which to do the predictions.
+        
+        Returns:
+            InvocationResponse: The prediction results.
+        """
         clf = cls.get_model()
-        return clf.most_similar(input)
+        input_data = pd.DataFrame([instance.dict() for instance in request.instances])
+        predictions = clf.predict(input_data)
+        response = InvocationResponse(
+            predictions=[Prediction(species=pred) for pred in predictions]
+        )
+        return response
