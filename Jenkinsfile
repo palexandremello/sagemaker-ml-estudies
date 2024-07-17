@@ -114,13 +114,13 @@ pipeline {
                                 --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
-                        } else {
+                        }else {
                             sh """
                             aws sagemaker create-training-job \
                                 --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} \
                                 --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
                                 --role-arn ${env.SAGEMAKER_ROLE} \
-                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=s3://${env.S3_INPUT_BUCKET}/${env.S3_DATA_PREFIX}, S3DataType=S3Prefix, S3DataDistributionType=FullyReplicated}},ContentType=csv \
+                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=s3://${env.S3_INPUT_BUCKET}/${env.S3_DATA_PREFIX},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
                                 --output-data-config S3OutputPath=s3://${env.S3_OUTPUT_BUCKET}/output \
                                 --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
                                 --stopping-condition MaxRuntimeInSeconds=3600
