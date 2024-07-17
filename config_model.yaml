@@ -3,11 +3,52 @@ model_name_prefix: "boyc-inference-mode-model"
 endpoint_config_name_prefix: "boyc-inference-mode-config"
 endpoint_name_prefix: "boyc-inference-mode"
 
+# Configurações de inferência
 inference:
   InstanceType: "ml.m5.large"
   InitialInstanceCount: 1
-  ModelDataUrl: "sagemaker-us-east-1-488578253112/byoc-model/model.tar.gz"
+  ModelDataUrl: "s3://sagemaker-us-east-1-488578253112/byoc-model/model.tar.gz"  # Usado somente para modelos pre-trained
+
+# Configurações de treinamento (usadas somente para modelos treináveis)
+training:
+  EnableTraining: false  # Defina como true para modelos treináveis
+  TrainingJobNamePrefix: "boyc-training-job"
+  InstanceType: "ml.m5.large"
+  InstanceCount: 1
+  MaxRuntimeInSeconds: 86400
+  OutputPath: "s3://your-output-bucket/training-output/"
+  HyperParameters:  # Hiperparâmetros do modelo
+    batch_size: 32
+    learning_rate: 0.001
+    epochs: 10
+  InputDataConfig:
+    TrainingData: "s3://your-input-bucket/training-data/"
+    ValidationData: "s3://your-input-bucket/validation-data/"
+
+# Configurações de S3
 s3:
   input_bucket: "your-input-bucket"
   output_bucket: "your-output-bucket"
   data_prefix: "your-data-prefix"
+
+# Configurações de monitoramento e logs
+monitoring:
+  EnableModelMonitoring: true
+  BaselineJobName: "boyc-model-monitoring-baseline-job"
+  MonitoringScheduleName: "boyc-model-monitoring-schedule"
+  MonitoringOutputConfig:
+    S3OutputPath: "s3://your-output-bucket/monitoring-output/"
+  ScheduleConfig:
+    ScheduleExpression: "cron(0 * ? * * *)"  # Executa a cada hora
+  MonitoringResources:
+    ClusterConfig:
+      InstanceCount: 1
+      InstanceType: "ml.m5.large"
+      VolumeSizeInGB: 20
+  EndpointInput:
+    EndpointName: "boyc-inference-mode-endpoint"
+    LocalPath: "/opt/ml/processing/input"
+  ConstraintsResource:
+    S3Uri: "s3://your-output-bucket/monitoring-constraints/"
+  StatisticsResource:
+    S3Uri: "s3://your-output-bucket/monitoring-statistics/"
