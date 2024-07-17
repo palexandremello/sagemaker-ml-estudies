@@ -1,7 +1,7 @@
 model_type: "trainable"  # Pode ser "trainable" ou "pre-trained"
-model_name_prefix: "boyc-inference-mode-model"
-endpoint_config_name_prefix: "boyc-inference-mode-config"
-endpoint_name_prefix: "boyc-inference-mode"
+model_name_prefix: "boyc-trainable-mode-model"
+endpoint_config_name_prefix: "boyc-trainable-mode-config"
+endpoint_name_prefix: "boyc-trainable-mode"
 
 inference:
   InstanceType: "ml.m5.large"

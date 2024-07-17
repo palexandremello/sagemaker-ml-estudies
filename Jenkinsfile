@@ -125,6 +125,25 @@ pipeline {
                                 --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
                                 --stopping-condition MaxRuntimeInSeconds=3600
                             """
+
+                            waitFor {
+                                script {
+                                    def trainingJobStatus = sh(
+                                        script: "aws sagemaker describe-training-job --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
+                                        returnStdout: true
+                                    ).trim()
+
+                                    return trainingJobStatus == 'Completed'
+                                }
+                                timeout(time: 1, unit: 'HOURS') // Ajuste conforme necessário
+                                interval(time: 5, unit: 'MINUTES') // Ajuste conforme necessário
+                            }
+                            sh """
+                            aws sagemaker create-model \
+                                --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${env.TRAINING_OUTPUT_PATH} \
+                                --execution-role-arn ${env.SAGEMAKER_ROLE}
+                            """
                         }
                     }
                 }
