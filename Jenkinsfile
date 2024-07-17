@@ -144,7 +144,7 @@ pipeline {
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${env.S3_OUTPUT_BUCKET} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.S3_OUTPUT_BUCKET} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         }
