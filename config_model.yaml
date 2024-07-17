@@ -3,15 +3,13 @@ model_name_prefix: "boyc-inference-mode-model"
 endpoint_config_name_prefix: "boyc-inference-mode-config"
 endpoint_name_prefix: "boyc-inference-mode"
 
-# Configurações de inferência
 inference:
   InstanceType: "ml.m5.large"
   InitialInstanceCount: 1
-  ModelDataUrl: "s3://sagemaker-us-east-1-488578253112/byoc-model/model.tar.gz"  # Usado somente para modelos pre-trained
+  ModelDataUrl: "" 
 
-# Configurações de treinamento (usadas somente para modelos treináveis)
 training:
-  EnableTraining: false  # Defina como true para modelos treináveis
+  EnableTraining: true  # Defina como true para modelos treináveis
   TrainingJobNamePrefix: "boyc-training-job"
   InstanceType: "ml.m5.large"
   InstanceCount: 1
@@ -25,11 +23,10 @@ training:
     TrainingData: "sagemaker-us-east-1-488578253112/training-data/"
     ValidationData: "sagemaker-us-east-1-488578253112/validation-data/"
 
-# Configurações de S3
 s3:
-  input_bucket: "your-input-bucket"
-  output_bucket: "your-output-bucket"
-  data_prefix: "your-data-prefix"
+  input_bucket: "sagemaker-us-east-1-488578253112/training-data/"
+  output_bucket: "sagemaker-us-east-1-488578253112/training-output/"
+  data_prefix: "train.csv"
 
 # Configurações de monitoramento e logs
 monitoring:
