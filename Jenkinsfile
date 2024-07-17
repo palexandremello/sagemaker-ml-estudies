@@ -126,17 +126,19 @@ pipeline {
                                 --stopping-condition MaxRuntimeInSeconds=3600
                             """
 
-                            waitFor {
-                                script {
-                                    def trainingJobStatus = sh(
-                                        script: "aws sagemaker describe-training-job --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
-                                        returnStdout: true
-                                    ).trim()
+                            timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
+                                waitUntil {
+                                    script {
+                                        def trainingJobStatus = sh(
+                                            script: "aws sagemaker describe-training-job --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
+                                            returnStdout: true
+                                        ).trim()
 
-                                    return trainingJobStatus == 'Completed'
+                                        echo "Training Job Status: ${trainingJobStatus}"
+                                        return trainingJobStatus == 'Completed'
+                                    }
+                                    sleep time: 5, unit: 'MINUTES' // Ajuste conforme necessário
                                 }
-                                timeout(time: 1, unit: 'HOURS') // Ajuste conforme necessário
-                                interval(time: 5, unit: 'MINUTES') // Ajuste conforme necessário
                             }
                             sh """
                             aws sagemaker create-model \
