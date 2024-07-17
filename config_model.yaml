@@ -26,7 +26,7 @@ training:
 s3:
   input_bucket: "sagemaker-us-east-1-488578253112/training-data/"
   output_bucket: "sagemaker-us-east-1-488578253112/training-output/"
-  data_prefix: "train.csv"
+  data_prefix: "data.csv"
 
 # Configurações de monitoramento e logs
 monitoring:
