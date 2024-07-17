@@ -16,14 +16,14 @@ training:
   InstanceType: "ml.m5.large"
   InstanceCount: 1
   MaxRuntimeInSeconds: 86400
-  OutputPath: "s3://your-output-bucket/training-output/"
+  OutputPath: "sagemaker-us-east-1-488578253112/training-output/"
   HyperParameters:  # Hiperparâmetros do modelo
     batch_size: 32
     learning_rate: 0.001
     epochs: 10
   InputDataConfig:
-    TrainingData: "s3://your-input-bucket/training-data/"
-    ValidationData: "s3://your-input-bucket/validation-data/"
+    TrainingData: "sagemaker-us-east-1-488578253112/training-data/"
+    ValidationData: "sagemaker-us-east-1-488578253112/validation-data/"
 
 # Configurações de S3
 s3:
