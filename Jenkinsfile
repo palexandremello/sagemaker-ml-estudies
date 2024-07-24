@@ -49,12 +49,7 @@ pipeline {
                     env.INFERENCE_PREFIX = config.s3.inference_prefix
                     env.TRAINING_DATA_PATH = config.data.training
                     env.VALIDATION_DATA_PATH = config.data.validation
-                    env.MODEL_NAME = "boyc-trainable-mode-model"
-                    env.MODEL_CODE_TRAINING_SCRIPTS = config.models."${env.MODEL_NAME}".code.training_scripts
-                    env.MODEL_CODE_INFERENCE_SCRIPTS = config.models."${env.MODEL_NAME}".code.inference_scripts
-                    env.MODEL_CODE_DOCKER = config.models."${env.MODEL_NAME}".code.docker
-                    env.MODEL_OUTPUT_V1 = config.models."${env.MODEL_NAME}".output.v1
-                    env.MODEL_OUTPUT_V2 = config.models."${env.MODEL_NAME}".output.v2
+                    env.MODEL_NAME = config.models.model_name
                     env.TRAINING_JOB_NAME_PREFIX = config.training.training_job_name_prefix
                     env.INSTANCE_TYPE = config.sagemaker.instance_type
                     env.INITIAL_INSTANCE_COUNT = config.sagemaker.initial_instance_count.toString()
