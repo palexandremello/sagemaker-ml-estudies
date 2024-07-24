@@ -151,11 +151,11 @@ pipeline {
                                 }
                                 sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                             }
-                            
+
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         }
