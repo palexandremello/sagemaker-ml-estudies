@@ -151,43 +151,7 @@ pipeline {
                                 }
                                 sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                             }
-                                def modelPackageGroupName = "${env.MODEL_PACKAGE_GROUP_NAME}"
-                                def modelPackageGroupExists = sh(
-                                    script: """
-                                        aws sagemaker list-model-package-groups --name-contains ${modelPackageGroupName} \
-                                        --query 'ModelPackageGroupSummaryList[?ModelPackageGroupName==`'${modelPackageGroupName}'`].ModelPackageGroupName' \
-                                        --output text
-                                    """, 
-                                    returnStdout: true
-                                ).trim()
                             
-                                if (!modelPackageGroupExists) {
-                                    echo "Creating model package group: ${modelPackageGroupName}"
-                                    sh """
-                                    aws sagemaker create-model-package-group \
-                                        --model-package-group-name ${modelPackageGroupName} \
-                                        --model-package-group-description "Group for all models of ${env.PROJECT_NAME}"
-                                    """
-                                } else {
-                                    echo "Model package group ${modelPackageGroupName} already exists."
-                                }
-                            }
-                            
-                            sh """
-                            aws sagemaker create-model-package \
-                                --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
-                                --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
-                                --model-approval-status ${env.APPROVAL_STATUS} \
-                                --inference-specification '{
-                                    "Containers": [{
-                                        "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
-                                        "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
-                                        "Environment": {}
-                                    }],
-                                    "SupportedContentTypes": ["text/csv"],
-                                    "SupportedResponseMIMETypes": ["text/csv"]
-                                }'
-                            """
                         }
                     }
                 }
