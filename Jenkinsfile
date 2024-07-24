@@ -151,6 +151,7 @@ pipeline {
                                 }
                                 sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                             }
+
                                 sh """
                                 aws sagemaker create-model \
                                     --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
@@ -171,9 +172,10 @@ pipeline {
                                         }],
                                         "SupportedContentTypes": ["text/csv"],
                                         "SupportedResponseMIMETypes": ["text/csv"]
-                                    }' \
-                                    --execution-role-arn ${env.SAGEMAKER_ROLE}
+                                    }'
                                 """
+
+
 
                         }
                     }
