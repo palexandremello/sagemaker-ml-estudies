@@ -41,7 +41,7 @@ pipeline {
         stage('Load Configuration') {
             steps {
                 script {
-                    def config = readYaml file: 'config.yaml'
+                    def config = readYaml file: 'config_model.yaml'
                     env.PROJECT_NAME = config.project_name
                     env.S3_BUCKET_NAME = config.s3.bucket_name
                     env.DATA_PREFIX = config.s3.data_prefix
