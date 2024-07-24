@@ -154,7 +154,7 @@ pipeline {
                                 sh """
                                 aws sagemaker create-model \
                                     --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
-                                    --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
+                                    --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz \
                                     --execution-role-arn ${env.SAGEMAKER_ROLE}
                                 """
                                 
@@ -166,7 +166,7 @@ pipeline {
                                     --inference-specification '{
                                         "Containers": [{
                                             "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
-                                            "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}",
+                                            "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
                                             "Environment": {}
                                         }],
                                         "SupportedContentTypes": ["text/csv"],
