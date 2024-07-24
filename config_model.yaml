@@ -1,7 +1,7 @@
 project_name: boyc-project
 
 s3:
-  bucket_name: bucket-test
+  bucket_name: sagemaker-us-east-1-488578253112
   data_prefix: data
   model_prefix: models
   inference_prefix: inference
