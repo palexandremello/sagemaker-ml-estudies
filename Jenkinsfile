@@ -113,83 +113,90 @@ pipeline {
         stage('Create or Train Model') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        if (env.MODEL_TYPE == 'pre-trained') {
-                            sh """
-                            aws sagemaker create-model \
-                                --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
-                                --execution-role-arn ${env.SAGEMAKER_ROLE}
-                            """
-                        } else {
-                            def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.TRAINING_DATA_PATH}"
-                            def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.VALIDATION_DATA_PATH}"
-                            def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.MODEL_PREFIX}"
-                            
-                            sh """
-                            aws sagemaker create-training-job \
-                                --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
-                                --role-arn ${env.SAGEMAKER_ROLE} \
-                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=${trainingDataUri},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
-                                --output-data-config S3OutputPath=${outputUri} \
-                                --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
-                                --stopping-condition MaxRuntimeInSeconds=${env.MAX_RUNTIME}
-                            """
+script {
+    if (env.MODEL_TYPE == 'pre-trained') {
+        sh """
+        aws sagemaker create-model \
+            --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
+            --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
+            --execution-role-arn ${env.SAGEMAKER_ROLE}
+        """
+    } else {
+        def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.TRAINING_DATA_PATH}"
+        def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.VALIDATION_DATA_PATH}"
+        def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.MODEL_PREFIX}"
+        
+        sh """
+        aws sagemaker create-training-job \
+            --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
+            --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
+            --role-arn ${env.SAGEMAKER_ROLE} \
+            --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=${trainingDataUri},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
+            --output-data-config S3OutputPath=${outputUri} \
+            --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
+            --stopping-condition MaxRuntimeInSeconds=${env.MAX_RUNTIME}
+        """
 
-                            timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
-                                waitUntil {
-                                    script {
-                                        def trainingJobStatus = sh(
-                                            script: "aws sagemaker describe-training-job --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
-                                            returnStdout: true
-                                        ).trim()
-                            
-                                        echo "Training Job Status: ${trainingJobStatus}"
-                                        return trainingJobStatus == 'Completed'
-                                    }
-                                }
-                                sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
-                            }
-                                def modelPackageGroupName = "${env.MODEL_PACKAGE_GROUP_NAME}"
-                                def modelPackageGroupExists = sh(
-                                    script: """
-                                        aws sagemaker list-model-package-groups --name-contains ${modelPackageGroupName} \
-                                        --query 'ModelPackageGroupSummaryList[?ModelPackageGroupName==`'${modelPackageGroupName}'`].ModelPackageGroupName' \
-                                        --output text
-                                    """, 
-                                    returnStdout: true
-                                ).trim()
-                            
-                                if (!modelPackageGroupExists) {
-                                    echo "Creating model package group: ${modelPackageGroupName}"
-                                    sh """
-                                    aws sagemaker create-model-package-group \
-                                        --model-package-group-name ${modelPackageGroupName} \
-                                        --model-package-group-description "Group for all models of ${env.PROJECT_NAME}"
-                                    """
-                                } else {
-                                    echo "Model package group ${modelPackageGroupName} already exists."
-                                }
-                            }
-                            
-                            sh """
-                            aws sagemaker create-model-package \
-                                --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
-                                --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
-                                --model-approval-status ${env.APPROVAL_STATUS} \
-                                --inference-specification '{
-                                    "Containers": [{
-                                        "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
-                                        "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
-                                        "Environment": {}
-                                    }],
-                                    "SupportedContentTypes": ["text/csv"],
-                                    "SupportedResponseMIMETypes": ["text/csv"]
-                                }'
-                            """
-                        }
-                    }
+        timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
+            waitUntil {
+                script {
+                    def trainingJobStatus = sh(
+                        script: "aws sagemaker describe-training-job --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
+                        returnStdout: true
+                    ).trim()
+        
+                    echo "Training Job Status: ${trainingJobStatus}"
+                    return trainingJobStatus == 'Completed'
+                }
+            }
+            sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
+        }
+
+                   sh """
+                   aws sagemaker create-model \
+                       --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
+                       --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz \
+                       --execution-role-arn ${env.SAGEMAKER_ROLE}
+                   """
+                   
+                   def modelPackageGroupName = "${env.MODEL_PACKAGE_GROUP_NAME}"
+                   def modelPackageGroupExists = sh(
+                       script: """
+                           aws sagemaker list-model-package-groups --name-contains ${modelPackageGroupName} \
+                           --query 'ModelPackageGroupSummaryList[?ModelPackageGroupName==`'${modelPackageGroupName}'`].ModelPackageGroupName' \
+                           --output text
+                       """, 
+                       returnStdout: true
+                   ).trim()
+           
+                   if (!modelPackageGroupExists) {
+                       echo "Creating model package group: ${modelPackageGroupName}"
+                       sh """
+                       aws sagemaker create-model-package-group \
+                           --model-package-group-name ${modelPackageGroupName} \
+                           --model-package-group-description "Group for all models of ${env.PROJECT_NAME}"
+                       """
+                   } else {
+                       echo "Model package group ${modelPackageGroupName} already exists."
+                   }
+                   
+                   sh """
+                   aws sagemaker create-model-package \
+                       --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
+                       --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
+                       --model-approval-status ${env.APPROVAL_STATUS} \
+                       --inference-specification '{
+                           "Containers": [{
+                               "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
+                               "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
+                               "Environment": {}
+                           }],
+                           "SupportedContentTypes": ["text/csv"],
+                           "SupportedResponseMIMETypes": ["text/csv"]
+                       }'
+                   """
+               }
+           }
                 }
             }
         }
