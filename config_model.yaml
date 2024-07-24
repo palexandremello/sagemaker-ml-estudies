@@ -7,9 +7,9 @@ s3:
   inference_prefix: inference
 
 data:
-  training: data/training/
-  validation: data/validation/
-  test: data/test/
+  training: training/data.csv
+  validation: validation/data.csv
+  test: test/data.csv
 
 models:
   model_name: boyc-trainable-mode-model

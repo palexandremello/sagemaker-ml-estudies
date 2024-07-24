@@ -122,9 +122,9 @@ pipeline {
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         } else {
-                            def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.TRAINING_DATA_PATH}"
-                            def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.VALIDATION_DATA_PATH}"
-                            def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.MODEL_OUTPUT_V1}"
+                            def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.TRAINING_DATA_PATH}"
+                            def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.VALIDATION_DATA_PATH}"
+                            def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.MODEL_PREFIX}"
                             
                             sh """
                             aws sagemaker create-training-job \
