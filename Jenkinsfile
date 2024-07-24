@@ -4,6 +4,9 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
         AWS_CREDENTIALS_ID = 'aws-credentials'
+        DOMAIN_ID = 'd-g6d3q693r6ep'
+        SLACK_CHANNEL = '#jenkins-deploys-models' // Substitua pelo seu canal do Slack
+        SLACK_CREDENTIALS_ID = 'jenkins-slack' // Substitua pelo ID das suas credenciais do Slack configuradas no Jenkins
     }
 
     stages {
@@ -113,204 +116,107 @@ pipeline {
         stage('Create or Train Model') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-script {
-    if (env.MODEL_TYPE == 'pre-trained') {
-        sh """
-        aws sagemaker create-model \
-            --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-            --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
-            --execution-role-arn ${env.SAGEMAKER_ROLE}
-        """
-    } else {
-        def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.TRAINING_DATA_PATH}"
-        def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.VALIDATION_DATA_PATH}"
-        def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.MODEL_PREFIX}"
-        
-        sh """
-        aws sagemaker create-training-job \
-            --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
-            --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
-            --role-arn ${env.SAGEMAKER_ROLE} \
-            --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=${trainingDataUri},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
-            --output-data-config S3OutputPath=${outputUri} \
-            --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
-            --stopping-condition MaxRuntimeInSeconds=${env.MAX_RUNTIME}
-        """
-
-        timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
-            waitUntil {
-                script {
-                    def trainingJobStatus = sh(
-                        script: "aws sagemaker describe-training-job --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
-                        returnStdout: true
-                    ).trim()
-        
-                    echo "Training Job Status: ${trainingJobStatus}"
-                    return trainingJobStatus == 'Completed'
-                }
-            }
-            sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
-        }
-
-                   sh """
-                   aws sagemaker create-model \
-                       --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
-                       --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz \
-                       --execution-role-arn ${env.SAGEMAKER_ROLE}
-                   """
-                   
-                   def modelPackageGroupName = "${env.MODEL_PACKAGE_GROUP_NAME}"
-                   def modelPackageGroupExists = sh(
-                       script: """
-                           aws sagemaker list-model-package-groups --name-contains ${modelPackageGroupName} \
-                           --query 'ModelPackageGroupSummaryList[?ModelPackageGroupName==`'${modelPackageGroupName}'`].ModelPackageGroupName' \
-                           --output text
-                       """, 
-                       returnStdout: true
-                   ).trim()
-           
-                   if (!modelPackageGroupExists) {
-                       echo "Creating model package group: ${modelPackageGroupName}"
-                       sh """
-                       aws sagemaker create-model-package-group \
-                           --model-package-group-name ${modelPackageGroupName} \
-                           --model-package-group-description "Group for all models of ${env.PROJECT_NAME}"
-                       """
-                   } else {
-                       echo "Model package group ${modelPackageGroupName} already exists."
-                   }
-                   
-                   sh """
-                   aws sagemaker create-model-package \
-                       --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
-                       --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
-                       --model-approval-status ${env.APPROVAL_STATUS} \
-                       --inference-specification '{
-                           "Containers": [{
-                               "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
-                               "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
-                               "Environment": {}
-                           }],
-                           "SupportedContentTypes": ["text/csv"],
-                           "SupportedResponseMIMETypes": ["text/csv"]
-                       }'
-                   """
-               }
-           }
-                }
-            }
-        }
-
-        stage('Check Existing Endpoint') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
-                        def endpointExists = sh(
-                            script: "aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging --region ${env.AWS_DEFAULT_REGION}",
-                            returnStatus: true
-                        ) == 0
-
-                        if (endpointExists) {
-                            env.ENDPOINT_EXISTS = 'true'
+                        if (env.MODEL_TYPE == 'pre-trained') {
+                            sh """
+                            aws sagemaker create-model \
+                                --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.MODEL_PATH} \
+                                --execution-role-arn ${env.SAGEMAKER_ROLE}
+                            """
                         } else {
-                            env.ENDPOINT_EXISTS = 'false'
+                            def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.TRAINING_DATA_PATH}"
+                            def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.DATA_PREFIX}/${env.VALIDATION_DATA_PATH}"
+                            def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.PROJECT_NAME}/${env.MODEL_PREFIX}"
+
+                            sh """
+                            aws sagemaker create-training-job \
+                                --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
+                                --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
+                                --role-arn ${env.SAGEMAKER_ROLE} \
+                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=${trainingDataUri},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
+                                --output-data-config S3OutputPath=${outputUri} \
+                                --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
+                                --stopping-condition MaxRuntimeInSeconds=${env.MAX_RUNTIME}
+                            """
+
+                            timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
+                                waitUntil {
+                                    script {
+                                        def trainingJobStatus = sh(
+                                            script: "aws sagemaker describe-training-job --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
+                                            returnStdout: true
+                                        ).trim()
+
+                                        echo "Training Job Status: ${trainingJobStatus}"
+                                        return trainingJobStatus == 'Completed'
+                                    }
+                                }
+                                sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
+                            }
+
+                            sh """
+                            aws sagemaker create-model \
+                                --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz \
+                                --execution-role-arn ${env.SAGEMAKER_ROLE}
+                            """
+
+                            def modelPackageGroupName = "${env.MODEL_PACKAGE_GROUP_NAME}"
+                            def modelPackageGroupExists = sh(
+                                script: """
+                                    aws sagemaker list-model-package-groups --name-contains ${modelPackageGroupName} \
+                                    --query 'ModelPackageGroupSummaryList[?ModelPackageGroupName==`'${modelPackageGroupName}'`].ModelPackageGroupName' \
+                                    --output text
+                                """,
+                                returnStdout: true
+                            ).trim()
+
+                            if (!modelPackageGroupExists) {
+                                echo "Creating model package group: ${modelPackageGroupName}"
+                                sh """
+                                aws sagemaker create-model-package-group \
+                                    --model-package-group-name ${modelPackageGroupName} \
+                                    --model-package-group-description "Group for all models of ${env.PROJECT_NAME}"
+                                """
+                            } else {
+                                echo "Model package group ${modelPackageGroupName} already exists."
+                            }
+
+                            sh """
+                            aws sagemaker create-model-package \
+                                --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
+                                --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
+                                --model-approval-status ${env.APPROVAL_STATUS} \
+                                --inference-specification '{
+                                    "Containers": [{
+                                        "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
+                                        "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}/output/model.tar.gz",
+                                        "Environment": {}
+                                    }],
+                                    "SupportedContentTypes": ["text/csv"],
+                                    "SupportedResponseMIMETypes": ["text/csv"]
+                                }'
+                            """
                         }
                     }
                 }
             }
         }
-
-        stage('Create Endpoint Config') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        aws sagemaker create-endpoint-config \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG} \
-                            --production-variants VariantName=AllTraffic,ModelName=${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG},InitialInstanceCount=${env.INITIAL_INSTANCE_COUNT},InstanceType=${env.INSTANCE_TYPE}
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Manual Approval for Endpoint Update') {
-            when {
-                expression {
-                    return env.ENDPOINT_EXISTS == 'true'
-                }
-            }
+    stage('Notify Model Approval Required') {
             steps {
                 script {
-                    input message: 'Aprovar a substituição da configuração do endpoint de staging?', ok: 'Aprovar'
+                    def sagemaker_url = "https://studio-${env.DOMAIN_ID}.studio.${env.AWS_DEFAULT_REGION}.sagemaker.aws/models/registered-models/${env.MODEL_PACKAGE_GROUP_NAME}/versions"
+                    echo "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}"
+                    slackSend (
+                        channel: "${env.SLACK_CHANNEL}",
+                        color: '#FF0000', // Cor da barra lateral na notificação do Slack
+                        message: "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})",
+                        tokenCredentialId: "${env.SLACK_CREDENTIALS_ID}"
+                    )
                 }
             }
         }
 
-        stage('Deploy to Staging') {
-            when {
-                expression {
-                    return env.ENDPOINT_EXISTS == 'false'
-                }
-            }
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        aws sagemaker create-endpoint \
-                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG}
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Update Staging Endpoint') {
-            when {
-                expression {
-                    return env.ENDPOINT_EXISTS == 'true'
-                }
-            }
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        aws sagemaker update-endpoint \
-                            --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME_PREFIX}-staging-config-${env.IMAGE_TAG}
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Wait for Staging Endpoint') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        sh """
-                        while [ \$(aws sagemaker describe-endpoint --endpoint-name ${env.ENDPOINT_NAME_PREFIX}-staging --query 'EndpointStatus' --output text) != 'InService' ]; do
-                            echo "Waiting for endpoint to be InService..."
-                            sleep 30
-                        done
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Model Evaluation') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-                    script {
-                        echo 'Evaluating model...'
-                        sh """
-                        echo "Aqui fazemos um teste do modelo"
-                        """
-                    }
-                }
-            }
-        }
     }
 }
