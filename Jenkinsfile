@@ -151,13 +151,30 @@ pipeline {
                                 }
                                 sleep time: 30, unit: 'SECONDS' // Ajuste conforme necessário
                             }
+                                sh """
+                                aws sagemaker create-model \
+                                    --model-name ${env.MODEL_NAME}-${env.IMAGE_TAG} \
+                                    --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
+                                    --execution-role-arn ${env.SAGEMAKER_ROLE}
+                                """
+                                
+                                sh """
+                                aws sagemaker create-model-package \
+                                    --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
+                                    --model-package-description "Model package for ${env.MODEL_NAME}-${env.IMAGE_TAG}" \
+                                    --model-approval-status ${env.APPROVAL_STATUS} \
+                                    --inference-specification '{
+                                        "Containers": [{
+                                            "Image": "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG}",
+                                            "ModelDataUrl": "${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG}",
+                                            "Environment": {}
+                                        }],
+                                        "SupportedContentTypes": ["text/csv"],
+                                        "SupportedResponseMIMETypes": ["text/csv"]
+                                    }' \
+                                    --execution-role-arn ${env.SAGEMAKER_ROLE}
+                                """
 
-                            sh """
-                            aws sagemaker create-model \
-                                --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri}/${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --execution-role-arn ${env.SAGEMAKER_ROLE}
-                            """
                         }
                     }
                 }
