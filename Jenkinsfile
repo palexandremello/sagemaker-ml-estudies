@@ -41,7 +41,7 @@ pipeline {
         stage('Load Configuration') {
             steps {
                 script {
-                    def config = readYaml file: 'config_model.yaml'
+                    def config = readYaml file: 'config.yaml'
                     env.PROJECT_NAME = config.project_name
                     env.S3_BUCKET_NAME = config.s3.bucket_name
                     env.DATA_PREFIX = config.s3.data_prefix
@@ -49,15 +49,20 @@ pipeline {
                     env.INFERENCE_PREFIX = config.s3.inference_prefix
                     env.TRAINING_DATA_PATH = config.data.training
                     env.VALIDATION_DATA_PATH = config.data.validation
-                    env.MODEL_NAME = config.models.model_name
+                    env.MODEL_NAME = "boyc-trainable-mode-model"
+                    env.MODEL_CODE_TRAINING_SCRIPTS = config.models."${env.MODEL_NAME}".code.training_scripts
+                    env.MODEL_CODE_INFERENCE_SCRIPTS = config.models."${env.MODEL_NAME}".code.inference_scripts
+                    env.MODEL_CODE_DOCKER = config.models."${env.MODEL_NAME}".code.docker
+                    env.MODEL_OUTPUT_V1 = config.models."${env.MODEL_NAME}".output.v1
+                    env.MODEL_OUTPUT_V2 = config.models."${env.MODEL_NAME}".output.v2
                     env.TRAINING_JOB_NAME_PREFIX = config.training.training_job_name_prefix
                     env.INSTANCE_TYPE = config.sagemaker.instance_type
-                    env.INITIAL_INSTANCE_COUNT = config.sagemaker.initial_instance_count
-                    env.MAX_RUNTIME = config.sagemaker.max_runtime_in_seconds
+                    env.INITIAL_INSTANCE_COUNT = config.sagemaker.initial_instance_count.toString()
+                    env.MAX_RUNTIME = config.sagemaker.max_runtime_in_seconds.toString()
                     env.MODEL_PACKAGE_GROUP_NAME = config.sagemaker.model_package_group_name
                     env.APPROVAL_STATUS = config.sagemaker.approval_status
                     env.INFERENCE_INSTANCE_TYPE = config.sagemaker.inference_instance_type
-                    env.INFERENCE_INITIAL_INSTANCE_COUNT = config.sagemaker.inference_initial_instance_count
+                    env.INFERENCE_INITIAL_INSTANCE_COUNT = config.sagemaker.inference_initial_instance_count.toString()
                     env.HYPER_PARAMETERS = config.training.hyper_parameters
                 }
             }
@@ -110,24 +115,6 @@ pipeline {
             }
         }
 
-        stage('Model Type Check') {
-            steps {
-                script {
-                    def config = readYaml file: 'config_model.yaml'
-                    env.MODEL_TYPE = config.model_type
-                    env.MODEL_NAME_PREFIX = config.model_name_prefix
-                    env.ENDPOINT_CONFIG_NAME_PREFIX = config.endpoint_config_name_prefix
-                    env.ENDPOINT_NAME_PREFIX = config.endpoint_name_prefix
-                    env.INSTANCE_TYPE = config.inference.InstanceType
-                    env.INITIAL_INSTANCE_COUNT = config.inference.InitialInstanceCount
-                    env.MODEL_PATH = config.inference.ModelDataUrl
-                    env.S3_INPUT_BUCKET = config.s3.input_bucket
-                    env.S3_OUTPUT_BUCKET = config.s3.output_bucket
-                    env.S3_DATA_PREFIX = config.s3.data_prefix
-                }
-            }
-        }
-
         stage('Create or Train Model') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
@@ -140,22 +127,26 @@ pipeline {
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         } else {
+                            def trainingDataUri = "s3://${env.S3_BUCKET_NAME}/${env.TRAINING_DATA_PATH}"
+                            def validationDataUri = "s3://${env.S3_BUCKET_NAME}/${env.VALIDATION_DATA_PATH}"
+                            def outputUri = "s3://${env.S3_BUCKET_NAME}/${env.MODEL_OUTPUT_V1}"
+                            
                             sh """
                             aws sagemaker create-training-job \
-                                --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} \
+                                --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} \
                                 --algorithm-specification TrainingImage=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},TrainingInputMode=File \
                                 --role-arn ${env.SAGEMAKER_ROLE} \
-                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=s3://${env.S3_INPUT_BUCKET}/${env.S3_DATA_PREFIX},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
-                                --output-data-config S3OutputPath=s3://${env.S3_OUTPUT_BUCKET}/output \
+                                --input-data-config ChannelName=training,DataSource={S3DataSource={S3Uri=${trainingDataUri},S3DataType=S3Prefix,S3DataDistributionType=FullyReplicated}},ContentType=csv \
+                                --output-data-config S3OutputPath=${outputUri} \
                                 --resource-config InstanceType=${env.INSTANCE_TYPE},InstanceCount=${env.INITIAL_INSTANCE_COUNT},VolumeSizeInGB=50 \
-                                --stopping-condition MaxRuntimeInSeconds=3600
+                                --stopping-condition MaxRuntimeInSeconds=${env.MAX_RUNTIME}
                             """
 
                             timeout(time: 1, unit: 'HOURS') { // Ajuste conforme necessário
                                 waitUntil {
                                     script {
                                         def trainingJobStatus = sh(
-                                            script: "aws sagemaker describe-training-job --training-job-name ${env.MODEL_NAME_PREFIX}-training-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
+                                            script: "aws sagemaker describe-training-job --training-job-name ${env.TRAINING_JOB_NAME_PREFIX}-${env.IMAGE_TAG} --query 'TrainingJobStatus' --output text",
                                             returnStdout: true
                                         ).trim()
                             
@@ -169,7 +160,7 @@ pipeline {
                             sh """
                             aws sagemaker create-model \
                                 --model-name ${env.MODEL_NAME_PREFIX}-${env.IMAGE_TAG} \
-                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=s3://${env.S3_OUTPUT_BUCKET} \
+                                --primary-container Image=${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${env.IMAGE_TAG},ModelDataUrl=${outputUri} \
                                 --execution-role-arn ${env.SAGEMAKER_ROLE}
                             """
                         }
