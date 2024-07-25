@@ -213,14 +213,14 @@ pipeline {
                                         "type": "section",
                                         "text": [
                                          "type": "mrkdwn",
-                                         "text": "Deployment failed. See the attached"
+                                         "text": "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})"
                                         ]
                                        ],
                                                                          [
                                         "type": "section",
                                         "text": [
                                          "type": "mrkdwn",
-                                         "text": "Deployment failed. 2"
+                                         "text": "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})"
                                         ]
                                        ]
                                       ]
@@ -230,6 +230,7 @@ pipeline {
                     slackSend (
                         channel: "${env.SLACK_CHANNEL}",
                         color: '#FF0000', // Cor da barra lateral na notificação do Slack
+                        message: "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})",
                         tokenCredentialId: "${env.SLACK_CREDENTIALS_ID}",
                         attachments: attachments
                     )
