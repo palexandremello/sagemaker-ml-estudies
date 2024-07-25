@@ -208,11 +208,30 @@ pipeline {
                 script {
                     def sagemaker_url = "https://studio-${env.DOMAIN_ID}.studio.${env.AWS_DEFAULT_REGION}.sagemaker.aws/models/registered-models/${env.MODEL_PACKAGE_GROUP_NAME}/versions"
                     echo "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}"
+                    attachments= [["blocks": [
+                                  [
+                                        "type": "section",
+                                        "text": [
+                                         "type": "mrkdwn",
+                                         "text": "Deployment failed. See the attached"
+                                        ]
+                                       ],
+                                                                         [
+                                        "type": "section",
+                                        "text": [
+                                         "type": "mrkdwn",
+                                         "text": "Deployment failed. 2"
+                                        ]
+                                       ]
+                                      ]
+                                     ]
+                                    ] 
+
                     slackSend (
                         channel: "${env.SLACK_CHANNEL}",
                         color: '#FF0000', // Cor da barra lateral na notificação do Slack
-                        message: "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})",
-                        tokenCredentialId: "${env.SLACK_CREDENTIALS_ID}"
+                        tokenCredentialId: "${env.SLACK_CREDENTIALS_ID}",
+                        attachments: attachments
                     )
                 }
             }
