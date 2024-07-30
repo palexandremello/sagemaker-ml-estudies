@@ -208,7 +208,7 @@ stage('Verify and Deploy Model') {
                 def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
 
                 def json = sh(script: """
-                    aws sagemaker list-model-packages --model-package-group-name ${MODEL_PACKAGE_GROUP_NAME} --output json --region ${AWS_REGION}
+                    aws sagemaker list-model-packages --model-package-group-name ${MODEL_PACKAGE_GROUP_NAME} --output json --region ${AWS_DEFAULT_REGION}
                 """, returnStdout: true).trim()
     
                 def filtered_model = sh(script: """
