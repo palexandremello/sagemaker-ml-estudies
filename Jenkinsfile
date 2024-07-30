@@ -100,13 +100,27 @@ pipeline {
                     credentialsId: "${env.AWS_CREDENTIALS_ID}"
                 ]]) {
                     script {
-                        def imageTag = "${env.BUILD_NUMBER}-${env.COMMIT_HASH}"
-                        sh """
-                        aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
-                        docker build -t ${env.ECR_REPO}:${imageTag} .
-                        docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
-                        docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
-                        """
+                        def imageTag = "${env.BUILD_NUMBER}-${env.BUILD_DATE}"
+                        def dockerfileModified = sh(
+                            script: "git diff --name-only HEAD^ HEAD | grep Dockerfile || true",
+                            returnStdout: true
+                        ).trim()
+        
+                        if (dockerfileModified) {
+                            echo "Dockerfile modified. Building new image."
+                            sh """
+                            aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
+                            docker build -t ${env.ECR_REPO}:${imageTag} .
+                            docker tag ${env.ECR_REPO}:${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
+                            docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com/${env.ECR_REPO}:${imageTag}
+                            """
+                        } else {
+                            echo "Dockerfile not modified. Using latest built image."
+                            imageTag = sh(
+                                script: "aws ecr describe-images --repository-name ${env.ECR_REPO} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text",
+                                returnStdout: true
+                            ).trim()
+                        }
                         env.IMAGE_TAG = imageTag
                     }
                 }
@@ -200,40 +214,6 @@ pipeline {
                             """
                         }
                     }
-                }
-            }
-        }
-    stage('Notify Model Approval Required') {
-            steps {
-                script {
-                    def sagemaker_url = "https://studio-${env.DOMAIN_ID}.studio.${env.AWS_DEFAULT_REGION}.sagemaker.aws/models/registered-models/${env.MODEL_PACKAGE_GROUP_NAME}/versions"
-                    echo "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}"
-                    attachments= [["blocks": [
-                                  [
-                                        "type": "section",
-                                        "text": [
-                                         "type": "mrkdwn",
-                                         "text": "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})"
-                                        ]
-                                       ],
-                                                                         [
-                                        "type": "section",
-                                        "text": [
-                                         "type": "mrkdwn",
-                                         "text": "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})"
-                                        ]
-                                       ]
-                                      ]
-                                     ]
-                                    ] 
-
-                    slackSend (
-                        channel: "${env.SLACK_CHANNEL}",
-                        color: '#FF0000', // Cor da barra lateral na notificação do Slack
-                        message: "Model package created and pending approval: ${env.MODEL_PACKAGE_GROUP_NAME}. [View in SageMaker Studio](${sagemaker_url})",
-                        tokenCredentialId: "${env.SLACK_CREDENTIALS_ID}",
-                        attachments: attachments
-                    )
                 }
             }
         }
