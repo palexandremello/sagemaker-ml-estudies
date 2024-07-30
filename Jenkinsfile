@@ -128,7 +128,7 @@ pipeline {
         }
 
         stage('Create or Train Model') {
-            steps {g
+            steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
                     script {
                         if (env.MODEL_TYPE == 'pre-trained') {
