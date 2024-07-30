@@ -106,7 +106,7 @@ pipeline {
                             returnStdout: true
                         ).trim()
         
-                        if (dockerfileModified) {
+                        if (dockerfileModified == 'Dockerfile') {
                             echo "Dockerfile modified. Building new image."
                             sh """
                             aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
