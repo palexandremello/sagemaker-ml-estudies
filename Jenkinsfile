@@ -207,5 +207,55 @@ pipeline {
             }
         }
 
+        stage('Verify and Deploy Model') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+            script {
+                def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
+
+                // Verificar o status de aprovação do modelo
+                def approvalStatus = sh(
+                    script: """
+                    aws sagemaker list-model-packages \
+                        --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
+                        --query 'ModelPackageSummaryList[?ModelPackageDescription==`'${modelPackageName}'`].ModelApprovalStatus' \
+                        --output text --region ${env.AWS_DEFAULT_REGION}
+                    """,
+                    returnStdout: true
+                ).trim()
+
+                echo "Model Approval Status: ${approvalStatus}"
+
+                if (approvalStatus == 'Approved') {
+                    echo "Model is approved. Deploying model."
+
+                    // Realizar o deploy do modelo
+                    sh """
+                    aws sagemaker create-endpoint-config \
+                        --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG} \
+                        --production-variants '[{
+                            "VariantName": "AllTraffic",
+                            "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
+                            "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
+                            "InstanceType": "${env.INSTANCE_TYPE}",
+                            "InitialVariantWeight": 1.0
+                        }]'
+                    """
+
+                    sh """
+                    aws sagemaker create-endpoint \
+                        --endpoint-name ${env.ENDPOINT_NAME} \
+                        --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}
+                    """
+
+                } else {
+                    echo "Model is not approved. Skipping deployment."
+                }
+            }
+        }
+    }
+}
+
+
     }
 }
