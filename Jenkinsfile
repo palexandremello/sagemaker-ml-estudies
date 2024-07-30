@@ -102,11 +102,11 @@ pipeline {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.BUILD_DATE}"
                         def dockerfileModified = sh(
-                            script: "git diff --name-only | grep Dockerfile",
+                            script: "git diff --name-only HEAD~1 HEAD | grep Dockerfile || true",
                             returnStdout: true
                         ).trim()
         
-                        if (dockerfileModified == 'Dockerfile') {
+                        if (dockerfileModified) {
                             echo "Dockerfile modified. Building new image."
                             sh """
                             aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
@@ -117,7 +117,9 @@ pipeline {
                         } else {
                             echo "Dockerfile not modified. Using latest built image."
                             imageTag = sh(
-                                script: "aws ecr describe-images --repository-name ${env.ECR_REPO} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text",
+                                script: """
+                                aws ecr describe-images --repository-name ${env.ECR_REPO} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text --region ${env.AWS_DEFAULT_REGION}
+                                """,
                                 returnStdout: true
                             ).trim()
                         }
