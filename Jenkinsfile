@@ -207,31 +207,27 @@ stage('Verify and Deploy Model') {
             script {
                 def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
 
-                def modelPackageInfo = sh(
-                    script: """
-                    aws sagemaker list-model-packages \
-                        --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
-                        --query 'ModelPackageSummaryList[?ModelPackageDescription==`'${modelPackageName}'`][0]' \
-                        --output json --region ${env.AWS_DEFAULT_REGION}
-                    """,
-                    returnStdout: true
-                ).trim()
-
-                def modelPackage = readJSON text: modelPackageInfo
-                def approvalStatus = modelPackage.ModelApprovalStatus
-                def modelVersion = modelPackage.ModelPackageVersion
-
-                echo "Model Approval Status: ${approvalStatus}"
-                echo "Model Package Version: ${modelVersion}"
-
-                def endpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-v${modelVersion}-${env.SAGEMAKER_ENV}"
+                def json = sh(script: """
+                    aws sagemaker list-model-packages --model-package-group-name ${MODEL_PACKAGE_GROUP_NAME} --output json --region ${AWS_REGION}
+                """, returnStdout: true).trim()
+    
+                def filtered_model = sh(script: """
+                    echo '${json}' | jq -c --arg desc "${modelPackageName}" '.ModelPackageSummaryList[] | select(.ModelPackageDescription == \$desc)'
+                """, returnStdout: true).trim()
+                
+                def model_package_version = sh(script: """
+                    echo '${filtered_model}' | jq -r '.ModelPackageVersion'
+                """, returnStdout: true).trim()
+                echo "Filtered Model Package: ${filtered_model}"
+                echo "Model Package Version: ${model_package_version}"
+                
+                def endpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-v${model_package_version}-${env.SAGEMAKER_ENV}"
 
                 echo "Model Approval Status: ${env.APPROVAL_STATUS}"
 
                 if (env.APPROVAL_STATUS == 'Approved') {
                     echo "Model is approved. Deploying model."
 
-                    // Realizar o deploy do modelo
                     sh """
                     aws sagemaker create-endpoint-config \
                         --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG} \
