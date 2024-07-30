@@ -62,6 +62,7 @@ pipeline {
                     env.INFERENCE_INSTANCE_TYPE = config.sagemaker.inference_instance_type
                     env.INFERENCE_INITIAL_INSTANCE_COUNT = config.sagemaker.inference_initial_instance_count.toString()
                     env.HYPER_PARAMETERS = config.training.hyper_parameters
+                    env.SAGEMAKER_ENV = config.sagemaker.environment
                 }
             }
         }
@@ -206,6 +207,25 @@ stage('Verify and Deploy Model') {
             script {
                 def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
 
+                def modelPackageInfo = sh(
+                    script: """
+                    aws sagemaker list-model-packages \
+                        --model-package-group-name ${env.MODEL_PACKAGE_GROUP_NAME} \
+                        --query 'ModelPackageSummaryList[?ModelPackageDescription==`'${modelPackageName}'`][0]' \
+                        --output json --region ${env.AWS_DEFAULT_REGION}
+                    """,
+                    returnStdout: true
+                ).trim()
+
+                def modelPackage = readJSON text: modelPackageInfo
+                def approvalStatus = modelPackage.ModelApprovalStatus
+                def modelVersion = modelPackage.ModelPackageVersion
+
+                echo "Model Approval Status: ${approvalStatus}"
+                echo "Model Package Version: ${modelVersion}"
+
+                def endpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-v${modelVersion}-${env.SAGEMAKER_ENV}"
+
                 echo "Model Approval Status: ${env.APPROVAL_STATUS}"
 
                 if (env.APPROVAL_STATUS == 'Approved') {
@@ -226,11 +246,11 @@ stage('Verify and Deploy Model') {
 
                     sh """
                     aws sagemaker create-endpoint \
-                        --endpoint-name ${env.ENDPOINT_NAME} \
+                        --endpoint-name ${endpointName} \
                         --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}
                     """
                 } else {
-                    echo "Model is not approved. Skipping deployment."
+                    echo "Model in PendingApproval. Skipping deployment."
                 }
             }
         }

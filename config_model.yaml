@@ -27,6 +27,7 @@ sagemaker:
   approval_status: Approved
   inference_instance_type: ml.m5.large
   inference_initial_instance_count: 1
+  environment: staging
 
 training:
   enable_training: true  # Defina como true para modelos treináveis
