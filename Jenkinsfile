@@ -208,7 +208,7 @@ stage('Verify and Deploy Model') {
                 def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
 
                 
-                def endpointName = "${env.PROJECT_NAME}-${env.modelPackageName}-${env.SAGEMAKER_ENV}"
+                def endpointName = "${env.PROJECT_NAME}-${modelPackageName}-${env.SAGEMAKER_ENV}"
 
                 echo "Model Approval Status: ${env.APPROVAL_STATUS}"
 
