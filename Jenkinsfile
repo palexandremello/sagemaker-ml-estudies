@@ -102,7 +102,7 @@ pipeline {
                     script {
                         def imageTag = "${env.BUILD_NUMBER}-${env.BUILD_DATE}"
                         def dockerfileModified = sh(
-                            script: "git diff --name-only HEAD^ HEAD | grep Dockerfile || true",
+                            script: "git diff --name-only | grep Dockerfile",
                             returnStdout: true
                         ).trim()
         

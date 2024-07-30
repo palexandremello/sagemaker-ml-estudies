@@ -25,7 +25,4 @@ COPY ./opt/ /opt/
 RUN chmod 755 /opt/program/serve
 RUN chmod 755 /opt/program/train
 
-
-
-
 EXPOSE 8080
