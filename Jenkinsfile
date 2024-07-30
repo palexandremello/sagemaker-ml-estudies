@@ -207,21 +207,8 @@ stage('Verify and Deploy Model') {
             script {
                 def modelPackageName = "${env.MODEL_PACKAGE_GROUP_NAME}-${env.IMAGE_TAG}"
 
-                def json = sh(script: """
-                    aws sagemaker list-model-packages --model-package-group-name ${MODEL_PACKAGE_GROUP_NAME} --output json --region ${AWS_DEFAULT_REGION}
-                """, returnStdout: true).trim()
-    
-                def filtered_model = sh(script: """
-                    echo '${json}' | jq -c --arg desc "${modelPackageName}" '.ModelPackageSummaryList[] | select(.ModelPackageDescription == \$desc)'
-                """, returnStdout: true).trim()
                 
-                def model_package_version = sh(script: """
-                    echo '${filtered_model}' | jq -r '.ModelPackageVersion'
-                """, returnStdout: true).trim()
-                echo "Filtered Model Package: ${filtered_model}"
-                echo "Model Package Version: ${model_package_version}"
-                
-                def endpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-v${model_package_version}-${env.SAGEMAKER_ENV}"
+                def endpointName = "${env.PROJECT_NAME}-${env.modelPackageName}-${env.SAGEMAKER_ENV}"
 
                 echo "Model Approval Status: ${env.APPROVAL_STATUS}"
 
