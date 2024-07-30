@@ -1,0 +1,28 @@
+FROM python:3.10
+
+RUN apt-get -y update && apt-get install -y --no-install-recommends \
+    g++ \
+    make \
+    cmake \
+    wget \
+    nginx \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV BASE_DIR="/project/opt/"
+
+COPY ./ ./project
+WORKDIR /project
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+# Criar os diretórios necessários
+RUN mkdir -p /opt/ml/input/data/training \
+    && mkdir -p /opt/ml/output \
+    && mkdir -p /opt/ml/model \
+    && mkdir -p /opt/ml/input/config
+
+    
+CMD ["python", "/project/opt/program/train"]
