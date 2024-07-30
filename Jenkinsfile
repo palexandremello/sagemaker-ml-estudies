@@ -100,7 +100,9 @@ pipeline {
                     credentialsId: "${env.AWS_CREDENTIALS_ID}"
                 ]]) {
                     script {
-                        def imageTag = "${env.BUILD_NUMBER}-${env.BUILD_DATE}"
+                    
+                        def buildDate = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
+                        def imageTag = "${env.BUILD_NUMBER}-${buildDate}"
                         echo "Dockerfile modified. Building new image."
                         sh """
                         aws ecr get-login-password --region ${env.AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_DEFAULT_REGION}.amazonaws.com
