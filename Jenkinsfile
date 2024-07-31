@@ -230,24 +230,6 @@ stage('Verify, Test, and Deploy Model') {
                 if (env.APPROVAL_STATUS == 'Approved') {
                     echo "Model is approved."
 
-                    // Função auxiliar para notificar que o endpoint de teste está pronto
-                    def notifyTestEndpointReady = { endpointName ->
-                        // Implement your notification logic here
-                        echo "Endpoint ready for testing: ${endpointName}"
-                    }
-
-                    // Função auxiliar para esperar pela validação
-                    def waitForValidation = {
-                        // Implement your wait logic here, e.g., poll a service or wait for a manual trigger
-                        sleep(time: 1, unit: 'HOURS') // Example: wait for 1 hour
-                    }
-
-                    // Função auxiliar para verificar os resultados da validação
-                    def checkValidationResults = {
-                        // Implement your logic to check validation results here
-                        return true // Example: return true if tests passed, false otherwise
-                    }
-
                     // Check if a production endpoint already exists
                     def endpointExists = sh(script: """
                         aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
@@ -282,41 +264,6 @@ stage('Verify, Test, and Deploy Model') {
                         aws sagemaker wait endpoint-in-service --endpoint-name ${testEndpointName}
                         """
 
-                        echo "Notifying for model validation on test endpoint..."
-                        notifyTestEndpointReady(testEndpointName)
-
-                        echo "Waiting for external validation..."
-                        waitForValidation()
-
-                        echo "External validation completed."
-
-                        boolean testsPassed = checkValidationResults() // Replace this with actual logic to check validation results
-
-                        if (testsPassed) {
-                            echo "Tests passed. Deploying model to production endpoint."
-
-                            // Create the endpoint configuration for the production endpoint
-                            sh """
-                            aws sagemaker create-endpoint-config \
-                                --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG} \
-                                --production-variants '[{
-                                    "VariantName": "AllTraffic",
-                                    "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
-                                    "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
-                                    "InstanceType": "${env.INFERENCE_INSTANCE_TYPE}",
-                                    "InitialVariantWeight": 1.0
-                                }]'
-                            """
-
-                            // Update the production endpoint
-                            sh """
-                            aws sagemaker update-endpoint \
-                                --endpoint-name ${prodEndpointName} \
-                                --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}
-                            """
-                        } else {
-                            echo "Tests failed. Not deploying model to production."
-                        }
                     } else {
                         echo "No production endpoint exists. Deploying model directly to production."
 
