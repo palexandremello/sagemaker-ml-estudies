@@ -216,10 +216,13 @@ pipeline {
                             echo "Model is approved."
 
                             // Check if a production endpoint already exists
-                            def endpointExists = sh(script: """
-                                aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
-                                echo \$?
-                            """, returnStdout: true).trim() == "0"
+                            def endpointExists = false
+                            try {
+                                sh(script: "aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1")
+                                endpointExists = true
+                            } catch (Exception e) {
+                                echo "Endpoint does not exist: ${prodEndpointName}"
+                            }
 
                             if (endpointExists) {
                                 echo "Production endpoint exists. Deploying model to test endpoint for validation."
@@ -278,6 +281,6 @@ pipeline {
                     }
                 }
             }
-        } 
+        }
     }
 }
