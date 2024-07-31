@@ -202,82 +202,82 @@ pipeline {
             }
         }
 
-stage('Verify, Test, and Deploy Model') {
-    steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
-            script {
-                
-                def testEndpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-${env.SAGEMAKER_ENV}-test"
-                def prodEndpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-${env.SAGEMAKER_ENV}"
+        stage('Verify, Test, and Deploy Model') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${env.AWS_CREDENTIALS_ID}"]]) {
+                    script {
+                        
+                        def testEndpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-${env.SAGEMAKER_ENV}-test"
+                        def prodEndpointName = "${env.PROJECT_NAME}-${env.MODEL_NAME}-${env.SAGEMAKER_ENV}"
 
-                echo "Model Approval Status: ${env.APPROVAL_STATUS}"
+                        echo "Model Approval Status: ${env.APPROVAL_STATUS}"
 
-                if (env.APPROVAL_STATUS == 'Approved') {
-                    echo "Model is approved."
+                        if (env.APPROVAL_STATUS == 'Approved') {
+                            echo "Model is approved."
 
-                    // Check if a production endpoint already exists
-                    def endpointExists = sh(script: """
-                        aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
-                        echo \$?
-                    """, returnStdout: true).trim() == "0"
+                            // Check if a production endpoint already exists
+                            def endpointExists = sh(script: """
+                                aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
+                                echo \$?
+                            """, returnStdout: true).trim() == "0"
 
-                    if (endpointExists) {
-                        echo "Production endpoint exists. Deploying model to test endpoint for validation."
+                            if (endpointExists) {
+                                echo "Production endpoint exists. Deploying model to test endpoint for validation."
 
-                        // Create the endpoint configuration for the test endpoint
-                        sh """
-                        aws sagemaker create-endpoint-config \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}-test \
-                            --production-variants '[{
-                                "VariantName": "AllTraffic",
-                                "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
-                                "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
-                                "InstanceType": "${env.INFERENCE_INSTANCE_TYPE}",
-                                "InitialVariantWeight": 1.0
-                            }]'
-                        """
+                                // Create the endpoint configuration for the test endpoint
+                                sh """
+                                aws sagemaker create-endpoint-config \
+                                    --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}-test \
+                                    --production-variants '[{
+                                        "VariantName": "AllTraffic",
+                                        "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
+                                        "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
+                                        "InstanceType": "${env.INFERENCE_INSTANCE_TYPE}",
+                                        "InitialVariantWeight": 1.0
+                                    }]'
+                                """
 
-                        // Create the test endpoint
-                        sh """
-                        aws sagemaker create-endpoint \
-                            --endpoint-name ${testEndpointName} \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}-test
-                        """
+                                // Create the test endpoint
+                                sh """
+                                aws sagemaker create-endpoint \
+                                    --endpoint-name ${testEndpointName} \
+                                    --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}-test
+                                """
 
-                        echo "Waiting for test endpoint to be in service..."
-                        sh """
-                        aws sagemaker wait endpoint-in-service --endpoint-name ${testEndpointName}
-                        """
+                                echo "Waiting for test endpoint to be in service..."
+                                sh """
+                                aws sagemaker wait endpoint-in-service --endpoint-name ${testEndpointName}
+                                """
 
-                    } else {
-                        echo "No production endpoint exists. Deploying model directly to production."
+                            } else {
+                                echo "No production endpoint exists. Deploying model directly to production."
 
-                        // Create the endpoint configuration for the production endpoint
-                        sh """
-                        aws sagemaker create-endpoint-config \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG} \
-                            --production-variants '[{
-                                "VariantName": "AllTraffic",
-                                "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
-                                "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
-                                "InstanceType": "${env.INFERENCE_INSTANCE_TYPE}",
-                                "InitialVariantWeight": 1.0
-                            }]'
-                        """
+                                // Create the endpoint configuration for the production endpoint
+                                sh """
+                                aws sagemaker create-endpoint-config \
+                                    --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG} \
+                                    --production-variants '[{
+                                        "VariantName": "AllTraffic",
+                                        "ModelName": "${env.MODEL_NAME}-${env.IMAGE_TAG}",
+                                        "InitialInstanceCount": ${env.INITIAL_INSTANCE_COUNT},
+                                        "InstanceType": "${env.INFERENCE_INSTANCE_TYPE}",
+                                        "InitialVariantWeight": 1.0
+                                    }]'
+                                """
 
-                        // Create the production endpoint
-                        sh """
-                        aws sagemaker create-endpoint \
-                            --endpoint-name ${prodEndpointName} \
-                            --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}
-                        """
+                                // Create the production endpoint
+                                sh """
+                                aws sagemaker create-endpoint \
+                                    --endpoint-name ${prodEndpointName} \
+                                    --endpoint-config-name ${env.ENDPOINT_CONFIG_NAME}-${env.IMAGE_TAG}
+                                """
+                            }
+                        } else {
+                            echo "Model in PendingApproval. Skipping deployment."
+                        }
                     }
-                } else {
-                    echo "Model in PendingApproval. Skipping deployment."
                 }
             }
-        }
-    }
-}
+        } 
     }
 }
