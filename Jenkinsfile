@@ -233,7 +233,7 @@ stage('Verify, Test, and Deploy Model') {
                     // Check if a production endpoint already exists
                     def endpointExists = sh(script: """
                         aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
-                        echo $?
+                        echo \$?
                     """, returnStdout: true).trim() == "0"
 
                     if (endpointExists) {
@@ -330,6 +330,21 @@ stage('Verify, Test, and Deploy Model') {
             }
         }
     }
+}
+
+def notifyTestEndpointReady(endpointName) {
+    // Implement your notification logic here
+    echo "Endpoint ready for testing: ${endpointName}"
+}
+
+def waitForValidation() {
+    // Implement your wait logic here, e.g., poll a service or wait for a manual trigger
+    sleep(time: 1, unit: 'HOURS') // Example: wait for 1 hour
+}
+
+def checkValidationResults() {
+    // Implement your logic to check validation results here
+    return true // Example: return true if tests passed, false otherwise
 }
 
     }
