@@ -230,6 +230,24 @@ stage('Verify, Test, and Deploy Model') {
                 if (env.APPROVAL_STATUS == 'Approved') {
                     echo "Model is approved."
 
+                    // Função auxiliar para notificar que o endpoint de teste está pronto
+                    def notifyTestEndpointReady = { endpointName ->
+                        // Implement your notification logic here
+                        echo "Endpoint ready for testing: ${endpointName}"
+                    }
+
+                    // Função auxiliar para esperar pela validação
+                    def waitForValidation = {
+                        // Implement your wait logic here, e.g., poll a service or wait for a manual trigger
+                        sleep(time: 1, unit: 'HOURS') // Example: wait for 1 hour
+                    }
+
+                    // Função auxiliar para verificar os resultados da validação
+                    def checkValidationResults = {
+                        // Implement your logic to check validation results here
+                        return true // Example: return true if tests passed, false otherwise
+                    }
+
                     // Check if a production endpoint already exists
                     def endpointExists = sh(script: """
                         aws sagemaker describe-endpoint --endpoint-name ${prodEndpointName} > /dev/null 2>&1
@@ -265,8 +283,6 @@ stage('Verify, Test, and Deploy Model') {
                         """
 
                         echo "Notifying for model validation on test endpoint..."
-                        
-                        // Replace this with actual notification logic
                         notifyTestEndpointReady(testEndpointName)
 
                         echo "Waiting for external validation..."
@@ -331,21 +347,5 @@ stage('Verify, Test, and Deploy Model') {
         }
     }
 }
-
-def notifyTestEndpointReady(endpointName) {
-    // Implement your notification logic here
-    echo "Endpoint ready for testing: ${endpointName}"
-}
-
-def waitForValidation() {
-    // Implement your wait logic here, e.g., poll a service or wait for a manual trigger
-    sleep(time: 1, unit: 'HOURS') // Example: wait for 1 hour
-}
-
-def checkValidationResults() {
-    // Implement your logic to check validation results here
-    return true // Example: return true if tests passed, false otherwise
-}
-
     }
 }
