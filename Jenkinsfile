@@ -11,21 +11,6 @@ pipeline {
 
     stages {
 
-        def notifyTestEndpointReady(endpointName) {
-            echo "Endpoint ready for testing: ${endpointName}"
-        }
-
-        def waitForValidation() {
-            // Implement your wait logic here, e.g., poll a service or wait for a manual trigger
-            sleep(time: 1, unit: 'HOURS') // Example: wait for 1 hour
-        }
-        
-        def checkValidationResults() {
-            // Implement your logic to check validation results here
-            return true // Example: return true if tests passed, false otherwise
-        }
-
-
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/palexandremello/sagemaker-ml-estudies'
